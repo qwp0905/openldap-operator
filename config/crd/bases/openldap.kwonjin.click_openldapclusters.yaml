@@ -864,6 +864,7 @@ spec:
                     type: object
                 type: object
               image:
+                description: Openldap image based on osixia/openldap
                 type: string
               imagePullPolicy:
                 description: PullPolicy describes a policy for if/when to pull a container
@@ -872,10 +873,11 @@ spec:
               monitor:
                 properties:
                   enabled:
+                    default: false
                     type: boolean
                   interval:
-                    format: int32
-                    type: integer
+                    default: 30s
+                    type: string
                   labels:
                     additionalProperties:
                       type: string
@@ -989,10 +991,29 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   backend:
+                    default: mdb
                     type: string
                   domain:
                     type: string
                   logLevel:
+                    default: 256
+                    enum:
+                    - -1
+                    - 0
+                    - 1
+                    - 2
+                    - 4
+                    - 8
+                    - 16
+                    - 32
+                    - 64
+                    - 128
+                    - 256
+                    - 512
+                    - 1024
+                    - 2048
+                    - 16384
+                    - 32768
                     format: int32
                     type: integer
                   organization:
@@ -1182,8 +1203,10 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       enabled:
+                        default: true
                         type: boolean
                       enforced:
+                        default: false
                         type: boolean
                       keyFile:
                         description: SecretKeySelector selects a key of a Secret.
@@ -1210,7 +1233,9 @@ spec:
                 format: int32
                 type: integer
               replicas:
+                default: 1
                 format: int32
+                minimum: 1
                 type: integer
               resources:
                 description: ResourceRequirements describes the compute resource requirements.

@@ -67,7 +67,7 @@ type OpenldapConfig struct {
 	//+optional
 	Organization string `json:"organization,omitempty"`
 
-	//+kubebuilder:default:=mdb
+	//+kubebuilder:default:="mdb"
 	Backend string `json:"backend,omitempty"`
 
 	//+optional
@@ -115,8 +115,8 @@ type MonitorConfig struct {
 	//+optional
 	Labels map[string]string `json:"labels,omitempty"`
 
-	//+kubebuilder:default:=30s
-	Interval int32 `json:"interval,omitempty"`
+	//+kubebuilder:default:="30s"
+	Interval string `json:"interval,omitempty"`
 }
 
 // OpenldapClusterStatus defines the observed state of OpenldapCluster
