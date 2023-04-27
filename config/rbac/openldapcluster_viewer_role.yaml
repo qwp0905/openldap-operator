@@ -1,0 +1,27 @@
+# permissions for end users to view openldapclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: openldapcluster-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: openldap-operator
+    app.kubernetes.io/part-of: openldap-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: openldapcluster-viewer-role
+rules:
+- apiGroups:
+  - openldap.kwonjin.click
+  resources:
+  - openldapclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - openldap.kwonjin.click
+  resources:
+  - openldapclusters/status
+  verbs:
+  - get

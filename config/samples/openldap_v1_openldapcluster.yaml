@@ -1,0 +1,12 @@
+apiVersion: openldap.kwonjin.click/v1
+kind: OpenldapCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: openldapcluster
+    app.kubernetes.io/instance: openldapcluster-sample
+    app.kubernetes.io/part-of: openldap-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: openldap-operator
+  name: openldapcluster-sample
+spec:
+  # TODO(user): Add fields here

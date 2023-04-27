@@ -10,4 +10,14 @@ plugins:
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: openldap-operator
 repo: github.com/qwp0905/openldap-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kwonjin.click
+  group: openldap
+  kind: OpenldapCluster
+  path: github.com/qwp0905/openldap-operator/api/v1
+  version: v1
 version: "3"

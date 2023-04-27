@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- openldap_v1_openldapcluster.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
