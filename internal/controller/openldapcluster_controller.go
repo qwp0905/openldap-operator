@@ -18,8 +18,12 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,7 +43,6 @@ type OpenldapClusterReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
 // the OpenldapCluster object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
@@ -47,11 +50,60 @@ type OpenldapClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	cluster, err := r.getCluster(ctx, req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-	// TODO(user): your logic here
+	err = r.setDefault(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	statefulset := &appsv1.StatefulSet{}
+
+	if err := r.Client.Get(
+		ctx,
+		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
+		statefulset,
+	); err != nil {
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Request) (*openldapv1.OpenldapCluster, error) {
+	logger := log.FromContext(ctx)
+	cluster := &openldapv1.OpenldapCluster{}
+
+	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+		if errors.IsNotFound(err) {
+			logger.Info("Delete")
+			return nil, nil
+		}
+
+		logger.Error(err, "error")
+		return cluster, err
+	}
+
+	return cluster, nil
+}
+
+func (r *OpenldapClusterReconciler) setDefault(ctx context.Context, cluster *openldapv1.OpenldapCluster) error {
+	logger := log.FromContext(ctx)
+	origin := cluster.DeepCopy()
+
+	if !reflect.DeepEqual(origin.Spec, cluster.Spec) {
+		logger.Info("Admission controllers (webhooks) appear to have been disabled. " +
+			"Please enable them for this object/namespace")
+		err := r.Patch(ctx, cluster, client.MergeFrom(origin))
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

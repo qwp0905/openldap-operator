@@ -145,6 +145,44 @@ type OpenldapClusterList struct {
 	Items           []OpenldapCluster `json:"items"`
 }
 
+const (
+	defaultTlsEnabled     = true
+	defaultTlsEnforced    = false
+	defaultDomain         = "example.com"
+	defaultBackend        = "mdb"
+	defaultLogLevel       = 256
+	defaultMonitorEnabled = false
+)
+
+func (r *OpenldapCluster) SetDefault() {
+	if r.Spec.OpenldapConfig == nil {
+		r.Spec.OpenldapConfig = &OpenldapConfig{
+			Backend:  defaultBackend,
+			LogLevel: defaultLogLevel,
+			Domain:   defaultDomain,
+		}
+	}
+
+	if r.Spec.OpenldapConfig.Tls == nil {
+		r.Spec.OpenldapConfig.Tls = &TlsConfig{
+			Enabled:  defaultTlsEnabled,
+			Enforced: defaultTlsEnforced,
+		}
+	}
+
+	if r.Spec.OpenldapConfig.Domain == "" {
+		r.Spec.OpenldapConfig.Domain = defaultDomain
+	}
+
+	if r.Spec.OpenldapConfig.Backend == "" {
+		r.Spec.OpenldapConfig.Backend = defaultBackend
+	}
+
+	if r.Spec.Monitor == nil {
+		r.Spec.Monitor = &MonitorConfig{Enabled: defaultMonitorEnabled}
+	}
+}
+
 func init() {
 	SchemeBuilder.Register(&OpenldapCluster{}, &OpenldapClusterList{})
 }
