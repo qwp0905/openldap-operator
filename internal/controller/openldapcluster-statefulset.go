@@ -25,6 +25,9 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 		return nil
 	}
 
+	if statefulset.Spec.Replicas != &cluster.Spec.Replicas {
+	}
+
 	return nil
 }
 

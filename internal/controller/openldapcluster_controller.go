@@ -20,10 +20,8 @@ import (
 	"context"
 	"reflect"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -60,13 +58,9 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	statefulset := &appsv1.StatefulSet{}
-
-	if err := r.Client.Get(
-		ctx,
-		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
-		statefulset,
-	); err != nil {
+	err = r.setStatefulset(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -92,6 +86,8 @@ func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Req
 func (r *OpenldapClusterReconciler) setDefault(ctx context.Context, cluster *openldapv1.OpenldapCluster) error {
 	logger := log.FromContext(ctx)
 	origin := cluster.DeepCopy()
+
+	cluster.SetDefault()
 
 	if !reflect.DeepEqual(origin.Spec, cluster.Spec) {
 		logger.Info("Admission controllers (webhooks) appear to have been disabled. " +
