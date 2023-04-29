@@ -58,6 +58,11 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
+	err = r.setConfigMap(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = r.setStatefulset(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -92,8 +97,8 @@ func (r *OpenldapClusterReconciler) setDefault(ctx context.Context, cluster *ope
 	if !reflect.DeepEqual(origin.Spec, cluster.Spec) {
 		logger.Info("Admission controllers (webhooks) appear to have been disabled. " +
 			"Please enable them for this object/namespace")
-		err := r.Patch(ctx, cluster, client.MergeFrom(origin))
 
+		err := r.Patch(ctx, cluster, client.MergeFrom(origin))
 		if err != nil {
 			return err
 		}

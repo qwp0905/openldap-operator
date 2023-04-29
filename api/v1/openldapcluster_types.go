@@ -1,8 +1,12 @@
 package v1
 
 import (
+	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // OpenldapClusterSpec defines the desired state of OpenldapCluster
@@ -27,7 +31,7 @@ type OpenldapClusterSpec struct {
 	OpenldapConfig *OpenldapConfig `json:"openldapConfig,omitempty"`
 
 	//+optional
-	Ports int32 `json:"port,omitempty"`
+	Ports *PortConfig `json:"port,omitempty"`
 
 	//+optional
 	Monitor *MonitorConfig `json:"monitor,omitempty"`
@@ -51,7 +55,7 @@ type PortConfig struct {
 
 type StorageConfig struct {
 	//+kubebuilder:validation:Required
-	VolumeClaimTemplate *corev1.PersistentVolumeClaimSpec `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate corev1.PersistentVolumeClaimSpec `json:"volumeClaimTemplate,omitempty"`
 }
 
 type OpenldapConfig struct {
@@ -71,23 +75,18 @@ type OpenldapConfig struct {
 	Backend string `json:"backend,omitempty"`
 
 	//+optional
-	SeedData *SecretOrConfigMapVolume `json:"seedData,omitempty"`
+	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
 
 	//+kubebuilder:default:=256
 	//+kubebuilder:validation:Enum:=-1;0;1;2;4;8;16;32;64;128;256;512;1024;2048;16384;32768
 	LogLevel int32 `json:"logLevel,omitempty"`
 }
 
-type SecretOrConfigMapVolume struct {
-	//+kubebuilder:validation:Required
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-
-	SecretOrConfigMapVolumeSource `json:",inline" protobuf:"bytes,2,opt,name=volumeSource"`
-}
-
 type SecretOrConfigMapVolumeSource struct {
+	//+optional
 	Secret *corev1.SecretVolumeSource `json:"secret,omitempty" protobuf:"bytes,6,opt,name=secret"`
 
+	//+optional
 	ConfigMap *corev1.ConfigMapVolumeSource `json:"configMap,omitempty" protobuf:"bytes,19,opt,name=configMap"`
 }
 
@@ -99,13 +98,16 @@ type TlsConfig struct {
 	Enforced bool `json:"enforced,omitempty"`
 
 	//+optional
-	CaFile *corev1.SecretKeySelector `json:"caFile,omitempty"`
+	SecretName string `json:"secretName,omitempty"`
 
 	//+optional
-	CertFile *corev1.SecretKeySelector `json:"certFile,omitempty"`
+	CaFile string `json:"caFile,omitempty"`
 
 	//+optional
-	KeyFile *corev1.SecretKeySelector `json:"keyFile,omitempty"`
+	CertFile string `json:"certFile,omitempty"`
+
+	//+optional
+	KeyFile string `json:"keyFile,omitempty"`
 }
 
 type MonitorConfig struct {
@@ -181,6 +183,119 @@ func (r *OpenldapCluster) SetDefault() {
 	if r.Spec.Monitor == nil {
 		r.Spec.Monitor = &MonitorConfig{Enabled: defaultMonitorEnabled}
 	}
+
+	if r.Spec.Ports == nil {
+		r.Spec.Ports = &PortConfig{
+			Ldap:  389,
+			Ldaps: 636,
+		}
+	}
+
+	if r.Spec.Affinity == nil {
+		r.Spec.Affinity = &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      "app.kubernetes.io/name",
+									Operator: "In",
+									Values:   []string{r.Name},
+								},
+							},
+						},
+						TopologyKey: "kubernetes.io/hostname",
+					},
+				},
+			},
+		}
+	}
+}
+
+func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: r.Spec.Ports.Ldap,
+				},
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      1,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
+	}
+}
+
+func (r *OpenldapCluster) SelectorLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name":     r.Name,
+		"app.kubernetes.io/instance": "openldap",
+	}
+}
+
+func (r *OpenldapCluster) ConfigMapName() string {
+	return fmt.Sprintf("%s-config", r.Name)
+}
+
+func (r *OpenldapCluster) InitContainerName() string {
+	return fmt.Sprintf("init-%s", r.Name)
+}
+
+func (r *OpenldapCluster) MonitorConfigMapName() string {
+	return fmt.Sprintf("%s-monitor", r.Name)
+}
+
+func (r *OpenldapCluster) ExporterName() string {
+	return fmt.Sprintf("%s-exporter", r.Name)
+}
+
+func (r *OpenldapCluster) BindDn() string {
+	dnList := []string{}
+	for _, el := range strings.Split(r.Spec.OpenldapConfig.Domain, ".") {
+		dnList = append(dnList, fmt.Sprintf("dc=%s", el))
+	}
+
+	return fmt.Sprintf("cn=admin,%s", strings.Join(dnList, ","))
+}
+
+func (r *OpenldapCluster) ReplicationHosts() string {
+	return ""
+}
+
+func (r *OpenldapCluster) ModuleMonitorLdif() string {
+	return `dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: {1}back_monitor`
+}
+
+func (r *OpenldapCluster) DatabaseModuleLdif() string {
+	return fmt.Sprintf(`dn: olcDatabase={2}Monitor,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMonitorConfig
+olcDatabase: {2}Monitor
+olcAccess: {0}to dn.subtree="cn=Monitor" by dn.base="%s" read by * none`, r.BindDn())
+}
+
+func (r *OpenldapCluster) MonitorInitScript(
+	moduleMonitor string,
+	databaseMonitor string,
+) string {
+	if !r.Spec.Monitor.Enabled {
+		return ""
+	}
+
+	return fmt.Sprintf(`#!/bin/bash
+
+if [ -z "$(ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=module{0},cn=config" | grep back_monitor)" ]; then
+	ldapmodify -Y EXTERNAL -H ldapi:/// -f %s
+	ldapadd -Y EXTERNAL -H ldapi:/// -f %s
+fi`, moduleMonitor, databaseMonitor)
 }
 
 func init() {
