@@ -24,43 +24,63 @@ const (
 	dataVolume           = "openldap-data"
 	tlsMountPath         = "/container/service/slapd/assets/certs"
 	tlsVolume            = "openldap-tls"
-	seedDataMountPath    = "/container/service/slapd/assets/config/bootstrap/ldif/custom"
+	seedDataMountPath    = "/var/init/seed"
 	seedDataVolume       = "openldap-seed"
-	monitorDataMountPath = "/var/init"
+	monitorDataMountPath = "/var/init/monitor"
 	monitorDataVolume    = "openldap-monitor"
 	monitorInitScript    = "init.sh"
 	exporterVolume       = "exporter-config"
 	exporterMountPath    = "/config/"
 
 	exporterImage = "qwp1216/openldap-exporter:0.0.2"
+
+	metricsPort     = 9142
+	metricsPortName = "metrics"
+	metricsPath     = "/metrics"
 )
 
 func (r *OpenldapClusterReconciler) setStatefulset(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
-) error {
+) (bool, error) {
 	logger := log.FromContext(ctx)
 	existsStatefulset, err := r.getStatefulset(ctx, cluster)
 
-	if errors.IsNotFound(err) {
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on Get Statefulset...")
+			return false, err
+		}
 		newStatefulset := r.statefulset(cluster)
-		ctrl.SetControllerReference(cluster, newStatefulset, r.Scheme)
+		err = ctrl.SetControllerReference(cluster, newStatefulset, r.Scheme)
+		if err != nil {
+			logger.Error(err, "Error on Registering Statefulset...")
+			return false, err
+		}
 
 		if err := r.Create(ctx, newStatefulset); err != nil {
 			logger.Error(err, "Error on Creating Statefulset...")
-			return err
+			return false, err
 		}
 
-		return nil
+		logger.Info("Statefulset Created")
+		return true, nil
 	}
 
-	updateStatefulset := r.statefulset(cluster)
+	updatedStatefulset := r.statefulset(cluster)
 
-	if r.compareContainer(cluster, existsStatefulset, updateStatefulset) {
-		existsStatefulset.Spec = updateStatefulset.Spec
+	if r.compareStatefulset(cluster, existsStatefulset, updatedStatefulset) {
+		logger.Info("Nothing to Update On Statefulset")
+		return false, nil
 	}
 
-	return nil
+	if err = r.Update(ctx, updatedStatefulset); err != nil {
+		logger.Error(err, "Error on Updating Statefulset...")
+		return false, err
+	}
+
+	logger.Info("Statefulset Updated")
+	return true, nil
 }
 
 func (r *OpenldapClusterReconciler) getStatefulset(
@@ -92,10 +112,6 @@ func (r *OpenldapClusterReconciler) initContainers(
 			Name:      seedDataVolume,
 			MountPath: seedDataMountPath,
 		},
-	)
-
-	initVolumeMounts = append(
-		initVolumeMounts,
 		corev1.VolumeMount{
 			Name:      monitorDataVolume,
 			MountPath: monitorDataMountPath,
@@ -116,6 +132,9 @@ func (r *OpenldapClusterReconciler) initContainers(
 			Image:           cluster.Spec.Image,
 			ImagePullPolicy: cluster.Spec.ImagePullPolicy,
 			Resources:       *cluster.Spec.Resources,
+			Args: []string{
+				fmt.Sprintf("sh %s/bootstrap", monitorDataMountPath),
+			},
 			EnvFrom: []corev1.EnvFromSource{
 				{
 					ConfigMapRef: &corev1.ConfigMapEnvSource{
@@ -125,14 +144,8 @@ func (r *OpenldapClusterReconciler) initContainers(
 					},
 				},
 			},
-			Env: initEnvVars,
-			Lifecycle: &corev1.Lifecycle{
-				PostStart: &corev1.LifecycleHandler{
-					Exec: &corev1.ExecAction{
-						Command: []string{fmt.Sprintf("sleep 5 && sh %s/%s", monitorDataMountPath, monitorInitScript)},
-					},
-				},
-			},
+			Env:          initEnvVars,
+			VolumeMounts: initVolumeMounts,
 		},
 	}
 }
@@ -190,6 +203,7 @@ func (r *OpenldapClusterReconciler) openldapContainer(
 		Image:           cluster.Spec.Image,
 		ImagePullPolicy: cluster.Spec.ImagePullPolicy,
 		Resources:       *cluster.Spec.Resources,
+		Args:            []string{"-l", cluster.Spec.OpenldapConfig.LogLevel},
 		Ports: []corev1.ContainerPort{
 			{Name: "ldap", Protocol: "TCP", ContainerPort: 389},
 			{Name: "ldaps", Protocol: "TCP", ContainerPort: 636},
@@ -212,18 +226,12 @@ func (r *OpenldapClusterReconciler) openldapContainer(
 
 func (r *OpenldapClusterReconciler) statefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet {
 
-	initContainers := r.initContainers(cluster)
-
 	containers := []corev1.Container{
 		r.openldapContainer(cluster),
-	}
-
-	if cluster.Spec.Monitor.Enabled {
-		containers = append(containers, r.exporterContainer(cluster))
+		r.exporterContainer(cluster),
 	}
 
 	maxUnavailable := intstr.FromInt(1)
-	partition := int32(1)
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -232,6 +240,7 @@ func (r *OpenldapClusterReconciler) statefulset(cluster *openldapv1.OpenldapClus
 			Labels:    cluster.SelectorLabels(),
 		},
 		Spec: appsv1.StatefulSetSpec{
+			ServiceName:     cluster.Name,
 			Replicas:        &cluster.Spec.Replicas,
 			MinReadySeconds: 60,
 			Selector: &metav1.LabelSelector{
@@ -245,7 +254,6 @@ func (r *OpenldapClusterReconciler) statefulset(cluster *openldapv1.OpenldapClus
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 				RollingUpdate: &appsv1.RollingUpdateStatefulSetStrategy{
 					MaxUnavailable: &maxUnavailable,
-					Partition:      &partition,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -254,7 +262,7 @@ func (r *OpenldapClusterReconciler) statefulset(cluster *openldapv1.OpenldapClus
 				},
 				Spec: corev1.PodSpec{
 					Containers:     containers,
-					InitContainers: initContainers,
+					InitContainers: r.initContainers(cluster),
 					Volumes:        r.statefulsetVolumes(cluster),
 				},
 			},
@@ -282,10 +290,30 @@ func (r *OpenldapClusterReconciler) statefulsetVolumes(
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
+		{
+			Name: monitorDataVolume,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cluster.MonitorConfigMapName(),
+					},
+				},
+			},
+		},
+		{
+			Name: exporterVolume,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: cluster.ExporterName(),
+					},
+				},
+			},
+		},
 	}
 
 	if cluster.Spec.OpenldapConfig.Tls.Enabled {
-		var defaultMode int32 = 420
+		defaultMode := int32(420)
 
 		volumes = append(
 			volumes,
@@ -295,32 +323,6 @@ func (r *OpenldapClusterReconciler) statefulsetVolumes(
 					Secret: &corev1.SecretVolumeSource{
 						SecretName:  cluster.Spec.OpenldapConfig.Tls.SecretName,
 						DefaultMode: &defaultMode,
-					},
-				},
-			},
-		)
-	}
-
-	if cluster.Spec.Monitor.Enabled {
-		volumes = append(
-			volumes,
-			corev1.Volume{
-				Name: monitorDataVolume,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: cluster.MonitorConfigMapName(),
-						},
-					},
-				},
-			},
-			corev1.Volume{
-				Name: exporterVolume,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: cluster.ExporterName(),
-						},
 					},
 				},
 			},
@@ -386,9 +388,9 @@ func (r *OpenldapClusterReconciler) exporterContainer(
 		},
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "metrics",
+				Name:          metricsPortName,
 				Protocol:      "TCP",
-				ContainerPort: 9142,
+				ContainerPort: metricsPort,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
@@ -400,11 +402,12 @@ func (r *OpenldapClusterReconciler) exporterContainer(
 	}
 }
 
-func (r *OpenldapClusterReconciler) compareContainer(
+func (r *OpenldapClusterReconciler) compareStatefulset(
 	cluster *openldapv1.OpenldapCluster,
 	exists *appsv1.StatefulSet,
 	new *appsv1.StatefulSet,
 ) bool {
+
 	for label, value := range new.Labels {
 		if exists.Labels[label] != value {
 			return false
@@ -417,35 +420,35 @@ func (r *OpenldapClusterReconciler) compareContainer(
 		}
 	}
 
-	var exOpenldapCon corev1.Container
-	var neOpenldapCon corev1.Container
+	// var exOpenldapCon corev1.Container
+	// var neOpenldapCon corev1.Container
 
-	var exExporter corev1.Container
-	var neExporter corev1.Container
+	// var exExporter corev1.Container
+	// var neExporter corev1.Container
 
-	existsContainers := exists.Spec.Template.Spec.Containers
-	newContainers := new.Spec.Template.Spec.Containers
+	// existsContainers := exists.Spec.Template.Spec.Containers
+	// newContainers := new.Spec.Template.Spec.Containers
 
-	for _, con := range existsContainers {
-		if con.Name == cluster.Name {
-			exOpenldapCon = con
-		}
+	// for _, con := range existsContainers {
+	// 	if con.Name == cluster.Name {
+	// 		exOpenldapCon = con
+	// 	}
 
-		if con.Name == cluster.ExporterName() {
-			exExporter = con
-		}
-	}
+	// 	if con.Name == cluster.ExporterName() {
+	// 		exExporter = con
+	// 	}
+	// }
 
-	for _, con := range newContainers {
-		if con.Name == cluster.Name {
-			neOpenldapCon = con
-		}
+	// for _, con := range newContainers {
+	// 	if con.Name == cluster.Name {
+	// 		neOpenldapCon = con
+	// 	}
 
-		if con.Name == cluster.ExporterName() {
-			neExporter = con
-		}
-	}
+	// 	if con.Name == cluster.ExporterName() {
+	// 		neExporter = con
+	// 	}
+	// }
 
-	return reflect.DeepEqual(exExporter, neExporter) &&
-		reflect.DeepEqual(exOpenldapCon, neOpenldapCon)
+	return reflect.DeepEqual(exists.Spec.VolumeClaimTemplates, new.Spec.VolumeClaimTemplates) &&
+		exists.Spec.Replicas == new.Spec.Replicas
 }

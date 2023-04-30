@@ -1,0 +1,47 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: openldap-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: OpenldapCluster is the Schema for the openldapclusters API
+      displayName: Openldap Cluster
+      kind: OpenldapCluster
+      name: openldapclusters.openldap.kwonjin.click
+      version: v1
+  description: openldap operator
+  displayName: openldap-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - openldap
+  links:
+  - name: Openldap Operator
+    url: https://openldap-operator.domain
+  maintainers:
+  - email: qwp0905@github.com
+    name: kwonjin
+  maturity: alpha
+  provider:
+    name: kwonjin
+  version: 0.0.0

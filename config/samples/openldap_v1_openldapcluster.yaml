@@ -8,5 +8,40 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: openldap-operator
   name: openldapcluster-sample
+  namespace: tools
 spec:
-  # TODO(user): Add fields here
+  image: osixia/openldap:stable
+  imagePullPolicy: IfNotPresent
+  replicas: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  storage:
+    volumeClaimTemplate:
+      storageClassName: standard
+      resources:
+        requests:
+          storage: 100Mi
+      accessModes:
+        - ReadWriteOnce
+  openldapConfig:
+    tls:
+      enabled: false
+    adminPassword:
+      key: password
+      name: openldap
+    domain: cluster.local
+    organization: kwonjin
+    backend: mdb
+    seedData:
+      configMap:
+        name: openldap-bootstrap
+    logLevel: info
+  monitor:
+    enabled: false
+  ports:
+    ldap: 1389

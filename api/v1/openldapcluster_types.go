@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -77,9 +78,9 @@ type OpenldapConfig struct {
 	//+optional
 	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
 
-	//+kubebuilder:default:=256
-	//+kubebuilder:validation:Enum:=-1;0;1;2;4;8;16;32;64;128;256;512;1024;2048;16384;32768
-	LogLevel int32 `json:"logLevel,omitempty"`
+	//+kubebuilder:default:=info
+	//+kubebuilder:validation:Enum:=info;error;warn;debug;trace
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 type SecretOrConfigMapVolumeSource struct {
@@ -152,7 +153,7 @@ const (
 	defaultTlsEnforced    = false
 	defaultDomain         = "example.com"
 	defaultBackend        = "mdb"
-	defaultLogLevel       = 256
+	defaultLogLevel       = "info"
 	defaultMonitorEnabled = false
 )
 
@@ -264,7 +265,30 @@ func (r *OpenldapCluster) BindDn() string {
 }
 
 func (r *OpenldapCluster) ReplicationHosts() string {
-	return ""
+	pods := []string{}
+	for i := 0; i < int(r.Spec.Replicas); i++ {
+		pods = append(
+			pods,
+			fmt.Sprintf(
+				"'%s-%s.%s.%s.svc:%s'",
+				r.Name,
+				strconv.Itoa(i),
+				r.Name,
+				r.Namespace,
+				strconv.Itoa(389),
+			),
+		)
+	}
+
+	return fmt.Sprintf("#PYTHON2BASH:[%s]", strings.Join(pods, ","))
+}
+
+func (r *OpenldapCluster) TlsEnabled() bool {
+	return r.Spec.OpenldapConfig.Tls.Enabled
+}
+
+func (r *OpenldapCluster) MonitorEnabled() bool {
+	return r.Spec.Monitor.Enabled
 }
 
 func (r *OpenldapCluster) ModuleMonitorLdif() string {
@@ -286,16 +310,20 @@ func (r *OpenldapCluster) MonitorInitScript(
 	moduleMonitor string,
 	databaseMonitor string,
 ) string {
-	if !r.Spec.Monitor.Enabled {
-		return ""
-	}
+	return strings.Join([]string{
+		"if [ -z \"$(ldapsearch -Y EXTERNAL -H ldapi:/// -b \"cn=module{0},cn=config\" | grep back_monitor)\" ]",
+		fmt.Sprintf("then ldapmodify -Y EXTERNAL -H ldapi:/// -f %s", moduleMonitor),
+		fmt.Sprintf("ldapadd -Y EXTERNAL -H ldapi:/// -f %s", databaseMonitor),
+		"fi",
+	}, ";")
+}
 
-	return fmt.Sprintf(`#!/bin/bash
+func (r *OpenldapCluster) LdapPort() int32 {
+	return r.Spec.Ports.Ldap
+}
 
-if [ -z "$(ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=module{0},cn=config" | grep back_monitor)" ]; then
-	ldapmodify -Y EXTERNAL -H ldapi:/// -f %s
-	ldapadd -Y EXTERNAL -H ldapi:/// -f %s
-fi`, moduleMonitor, databaseMonitor)
+func (r *OpenldapCluster) LdapsPort() int32 {
+	return r.Spec.Ports.Ldaps
 }
 
 func init() {

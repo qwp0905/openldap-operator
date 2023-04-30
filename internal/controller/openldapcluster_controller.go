@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,20 +53,61 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	if cluster == nil {
+		return ctrl.Result{}, nil
+	}
 
 	err = r.setDefault(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = r.setConfigMap(ctx, cluster)
+	requeue, err := r.setConfigMap(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
 
-	err = r.setStatefulset(ctx, cluster)
+	requeue, err = r.setMonitorConfigMap(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
+
+	requeue, err = r.setExporterConfigMap(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
+
+	requeue, err = r.setStatefulset(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
+
+	requeue, err = r.setService(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
+
+	requeue, err = r.setServiceMonitor(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -82,7 +124,7 @@ func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Req
 		}
 
 		logger.Error(err, "error")
-		return cluster, err
+		return nil, err
 	}
 
 	return cluster, nil

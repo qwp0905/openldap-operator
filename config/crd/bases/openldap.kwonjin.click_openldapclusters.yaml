@@ -996,26 +996,14 @@ spec:
                   domain:
                     type: string
                   logLevel:
-                    default: 256
+                    default: info
                     enum:
-                    - -1
-                    - 0
-                    - 1
-                    - 2
-                    - 4
-                    - 8
-                    - 16
-                    - 32
-                    - 64
-                    - 128
-                    - 256
-                    - 512
-                    - 1024
-                    - 2048
-                    - 16384
-                    - 32768
-                    format: int32
-                    type: integer
+                    - info
+                    - error
+                    - warn
+                    - debug
+                    - trace
+                    type: string
                   organization:
                     type: string
                   seedData:
@@ -1214,7 +1202,9 @@ spec:
                       - name
                       type: object
                     type: array
-                    x-kubernetes-list-type: set
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   limits:
                     additionalProperties:
                       anyOf:
@@ -1362,7 +1352,9 @@ spec:
                               - name
                               type: object
                             type: array
-                            x-kubernetes-list-type: set
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
                               anyOf:
