@@ -66,6 +66,15 @@ type OpenldapConfig struct {
 	//+optional
 	AdminPassword *corev1.SecretKeySelector `json:"adminPassword,omitempty"`
 
+	//+optional
+	AdminUsername *corev1.SecretKeySelector `json:"adminUsername,omitempty"`
+
+	//+optional
+	ConfigPassword *corev1.SecretKeySelector `json:"configPassword,omitempty"`
+
+	//+optional
+	ConfigUsername *corev1.SecretKeySelector `json:"configUsername,omitempty"`
+
 	//+kubebuilder:validation:Required
 	Domain string `json:"domain,omitempty"`
 

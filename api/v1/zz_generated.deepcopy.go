@@ -193,6 +193,21 @@ func (in *OpenldapConfig) DeepCopyInto(out *OpenldapConfig) {
 		*out = new(corev1.SecretKeySelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AdminUsername != nil {
+		in, out := &in.AdminUsername, &out.AdminUsername
+		*out = new(corev1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ConfigPassword != nil {
+		in, out := &in.ConfigPassword, &out.ConfigPassword
+		*out = new(corev1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ConfigUsername != nil {
+		in, out := &in.ConfigUsername, &out.ConfigUsername
+		*out = new(corev1.SecretKeySelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SeedData != nil {
 		in, out := &in.SeedData, &out.SeedData
 		*out = new(SecretOrConfigMapVolumeSource)
