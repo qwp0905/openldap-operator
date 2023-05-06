@@ -70,30 +70,6 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setMonitorConfigMap(ctx, cluster)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if requeue {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
-
-	requeue, err = r.setExporterConfigMap(ctx, cluster)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if requeue {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
-
-	requeue, err = r.setStatefulset(ctx, cluster)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if requeue {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
-
 	requeue, err = r.setService(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -130,7 +106,10 @@ func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Req
 	return cluster, nil
 }
 
-func (r *OpenldapClusterReconciler) setDefault(ctx context.Context, cluster *openldapv1.OpenldapCluster) error {
+func (r *OpenldapClusterReconciler) setDefault(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) error {
 	logger := log.FromContext(ctx)
 	origin := cluster.DeepCopy()
 

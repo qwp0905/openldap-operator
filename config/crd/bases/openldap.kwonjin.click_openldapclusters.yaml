@@ -864,7 +864,7 @@ spec:
                     type: object
                 type: object
               image:
-                description: Openldap image based on osixia/openldap
+                description: Openldap image based on qwp1216/openldap
                 type: string
               imagePullPolicy:
                 description: PullPolicy describes a policy for if/when to pull a container
@@ -1009,9 +1009,6 @@ spec:
                     - key
                     type: object
                     x-kubernetes-map-type: atomic
-                  backend:
-                    default: mdb
-                    type: string
                   configPassword:
                     description: SecretKeySelector selects a key of a Secret.
                     properties:
@@ -1051,17 +1048,6 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   domain:
-                    type: string
-                  logLevel:
-                    default: info
-                    enum:
-                    - info
-                    - error
-                    - warn
-                    - debug
-                    - trace
-                    type: string
-                  organization:
                     type: string
                   seedData:
                     properties:
@@ -1210,9 +1196,6 @@ spec:
                       certFile:
                         type: string
                       enabled:
-                        default: true
-                        type: boolean
-                      enforced:
                         default: false
                         type: boolean
                       keyFile:
@@ -1224,12 +1207,12 @@ spec:
               port:
                 properties:
                   ldap:
-                    default: 389
+                    default: 1389
                     format: int32
                     minimum: 1
                     type: integer
                   ldaps:
-                    default: 636
+                    default: 1636
                     format: int32
                     minimum: 1
                     type: integer
@@ -1570,6 +1553,12 @@ spec:
                   - type
                   type: object
                 type: array
+              master:
+                type: string
+              phase:
+                type: string
+              readyReplicas:
+                type: integer
             type: object
         type: object
     served: true

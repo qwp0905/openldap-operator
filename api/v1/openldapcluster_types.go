@@ -12,7 +12,7 @@ import (
 
 // OpenldapClusterSpec defines the desired state of OpenldapCluster
 type OpenldapClusterSpec struct {
-	// Openldap image based on osixia/openldap
+	// Openldap image based on qwp1216/openldap
 	Image string `json:"image,omitempty"`
 
 	//+optional
@@ -45,11 +45,11 @@ type OpenldapClusterSpec struct {
 }
 
 type PortConfig struct {
-	//+kubebuilder:default:=389
+	//+kubebuilder:default:=1389
 	//+kubebuilder:validation:Minimum:=1
 	Ldap int32 `json:"ldap,omitempty"`
 
-	//+kubebuilder:default:=636
+	//+kubebuilder:default:=1636
 	//+kubebuilder:validation:Minimum:=1
 	Ldaps int32 `json:"ldaps,omitempty"`
 }
@@ -79,17 +79,7 @@ type OpenldapConfig struct {
 	Domain string `json:"domain,omitempty"`
 
 	//+optional
-	Organization string `json:"organization,omitempty"`
-
-	//+kubebuilder:default:="mdb"
-	Backend string `json:"backend,omitempty"`
-
-	//+optional
 	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
-
-	//+kubebuilder:default:=info
-	//+kubebuilder:validation:Enum:=info;error;warn;debug;trace
-	LogLevel string `json:"logLevel,omitempty"`
 }
 
 type SecretOrConfigMapVolumeSource struct {
@@ -101,11 +91,8 @@ type SecretOrConfigMapVolumeSource struct {
 }
 
 type TlsConfig struct {
-	//+kubebuilder:default:=true
-	Enabled bool `json:"enabled,omitempty"`
-
 	//+kubebuilder:default:=false
-	Enforced bool `json:"enforced,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
 
 	//+optional
 	SecretName string `json:"secretName,omitempty"`
@@ -134,6 +121,12 @@ type MonitorConfig struct {
 // OpenldapClusterStatus defines the observed state of OpenldapCluster
 type OpenldapClusterStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
+	Master string `json:"master,omitempty"`
+
+	ReadyReplicas int `json:"readyReplicas,omitempty"`
+
+	Phase string `json:"phase,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -158,9 +151,8 @@ type OpenldapClusterList struct {
 }
 
 const (
-	defaultTlsEnabled     = true
-	defaultTlsEnforced    = false
-	defaultDomain         = "example.com"
+	defaultTlsEnabled     = false
+	defaultDomain         = "dc=example,dc=com"
 	defaultBackend        = "mdb"
 	defaultLogLevel       = "info"
 	defaultMonitorEnabled = false
@@ -169,25 +161,30 @@ const (
 func (r *OpenldapCluster) SetDefault() {
 	if r.Spec.OpenldapConfig == nil {
 		r.Spec.OpenldapConfig = &OpenldapConfig{
-			Backend:  defaultBackend,
-			LogLevel: defaultLogLevel,
-			Domain:   defaultDomain,
+			Domain: defaultDomain,
 		}
 	}
 
 	if r.Spec.OpenldapConfig.Tls == nil {
 		r.Spec.OpenldapConfig.Tls = &TlsConfig{
-			Enabled:  defaultTlsEnabled,
-			Enforced: defaultTlsEnforced,
+			Enabled: defaultTlsEnabled,
+		}
+	} else if r.Spec.OpenldapConfig.Tls.Enabled {
+		if r.Spec.OpenldapConfig.Tls.CaFile == "" {
+			r.Spec.OpenldapConfig.Tls.CaFile = "ca.crt"
+		}
+
+		if r.Spec.OpenldapConfig.Tls.KeyFile == "" {
+			r.Spec.OpenldapConfig.Tls.KeyFile = "cert.key"
+		}
+
+		if r.Spec.OpenldapConfig.Tls.CertFile == "" {
+			r.Spec.OpenldapConfig.Tls.CertFile = "cert.crt"
 		}
 	}
 
 	if r.Spec.OpenldapConfig.Domain == "" {
 		r.Spec.OpenldapConfig.Domain = defaultDomain
-	}
-
-	if r.Spec.OpenldapConfig.Backend == "" {
-		r.Spec.OpenldapConfig.Backend = defaultBackend
 	}
 
 	if r.Spec.Monitor == nil {
@@ -196,8 +193,8 @@ func (r *OpenldapCluster) SetDefault() {
 
 	if r.Spec.Ports == nil {
 		r.Spec.Ports = &PortConfig{
-			Ldap:  389,
-			Ldaps: 636,
+			Ldap:  1389,
+			Ldaps: 1636,
 		}
 	}
 
@@ -241,6 +238,14 @@ func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
 	}
 }
 
+func (r *OpenldapCluster) PodName(index int) string {
+	return fmt.Sprintf(
+		"%s-%s",
+		r.Name,
+		strconv.Itoa(index),
+	)
+}
+
 func (r *OpenldapCluster) SelectorLabels() map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":     r.Name,
@@ -248,16 +253,32 @@ func (r *OpenldapCluster) SelectorLabels() map[string]string {
 	}
 }
 
+func (r *OpenldapCluster) MasterSelectorLabels() (labels map[string]string) {
+	labels = r.SelectorLabels()
+	labels["app.kubernetes.io/component"] = "master"
+	return
+}
+
+func (r *OpenldapCluster) SlaveSelectorLabels() (labels map[string]string) {
+	labels = r.SelectorLabels()
+	labels["app.kubernetes.io/component"] = "slave"
+	return
+}
+
+func (r *OpenldapCluster) ReadServiceName() string {
+	return fmt.Sprintf("%s-read", r.Name)
+}
+
+func (r *OpenldapCluster) WriteServiceName() string {
+	return fmt.Sprintf("%s-write", r.Name)
+}
+
+func (r *OpenldapCluster) MetricsServiceName() string {
+	return fmt.Sprintf("%s-metrics", r.Name)
+}
+
 func (r *OpenldapCluster) ConfigMapName() string {
 	return fmt.Sprintf("%s-config", r.Name)
-}
-
-func (r *OpenldapCluster) InitContainerName() string {
-	return fmt.Sprintf("init-%s", r.Name)
-}
-
-func (r *OpenldapCluster) MonitorConfigMapName() string {
-	return fmt.Sprintf("%s-monitor", r.Name)
 }
 
 func (r *OpenldapCluster) ExporterName() string {
@@ -273,58 +294,28 @@ func (r *OpenldapCluster) BindDn() string {
 	return fmt.Sprintf("cn=admin,%s", strings.Join(dnList, ","))
 }
 
-func (r *OpenldapCluster) ReplicationHosts() string {
-	pods := []string{}
-	for i := 0; i < int(r.Spec.Replicas); i++ {
-		pods = append(
-			pods,
-			fmt.Sprintf(
-				"'%s-%s.%s.%s.svc:%s'",
-				r.Name,
-				strconv.Itoa(i),
-				r.Name,
-				r.Namespace,
-				strconv.Itoa(389),
-			),
-		)
-	}
-
-	return fmt.Sprintf("#PYTHON2BASH:[%s]", strings.Join(pods, ","))
-}
-
 func (r *OpenldapCluster) TlsEnabled() bool {
 	return r.Spec.OpenldapConfig.Tls.Enabled
+}
+
+func (r *OpenldapCluster) TlsMountPath() string {
+	return "/opt/bitnami/openldap/certs"
 }
 
 func (r *OpenldapCluster) MonitorEnabled() bool {
 	return r.Spec.Monitor.Enabled
 }
 
-func (r *OpenldapCluster) ModuleMonitorLdif() string {
-	return `dn: cn=module{0},cn=config
-changetype: modify
-add: olcModuleLoad
-olcModuleLoad: {1}back_monitor`
+func (r *OpenldapCluster) MetricsPort() int32 {
+	return 9142
 }
 
-func (r *OpenldapCluster) DatabaseModuleLdif() string {
-	return fmt.Sprintf(`dn: olcDatabase={2}Monitor,cn=config
-objectClass: olcDatabaseConfig
-objectClass: olcMonitorConfig
-olcDatabase: {2}Monitor
-olcAccess: {0}to dn.subtree="cn=Monitor" by dn.base="%s" read by * none`, r.BindDn())
+func (r *OpenldapCluster) MetricsPortName() string {
+	return "metrics"
 }
 
-func (r *OpenldapCluster) MonitorInitScript(
-	moduleMonitor string,
-	databaseMonitor string,
-) string {
-	return strings.Join([]string{
-		"if [ -z \"$(ldapsearch -Y EXTERNAL -H ldapi:/// -b \"cn=module{0},cn=config\" | grep back_monitor)\" ]",
-		fmt.Sprintf("then ldapmodify -Y EXTERNAL -H ldapi:/// -f %s", moduleMonitor),
-		fmt.Sprintf("ldapadd -Y EXTERNAL -H ldapi:/// -f %s", databaseMonitor),
-		"fi",
-	}, ";")
+func (r *OpenldapCluster) MetricsPath() string {
+	return "/metrics"
 }
 
 func (r *OpenldapCluster) LdapPort() int32 {
@@ -333,6 +324,10 @@ func (r *OpenldapCluster) LdapPort() int32 {
 
 func (r *OpenldapCluster) LdapsPort() int32 {
 	return r.Spec.Ports.Ldaps
+}
+
+func (r *OpenldapCluster) SeedDataPath() string {
+	return "/ldifs"
 }
 
 func init() {

@@ -5,11 +5,11 @@ import (
 	"reflect"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
+	"github.com/qwp0905/openldap-operator/pkg/services"
+	"github.com/qwp0905/openldap-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -18,126 +18,194 @@ func (r *OpenldapClusterReconciler) setService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
-	logger := log.FromContext(ctx)
-	existsService, err := r.getService(ctx, cluster)
-
+	requeue, err := r.setWriteService(ctx, cluster)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			logger.Error(err, "Error on Getting Service...")
-			return false, err
-		}
-
-		newService := r.service(cluster)
-		err = ctrl.SetControllerReference(cluster, newService, r.Scheme)
-		if err != nil {
-			logger.Error(err, "Error on Registering Service...")
-			return false, err
-		}
-
-		if err := r.Create(ctx, newService); err != nil {
-			logger.Error(err, "Error on Creating Service...")
-			return false, err
-		}
-
-		logger.Info("Service Created")
+		return false, err
+	}
+	if requeue {
 		return true, nil
 	}
 
-	updatedService := r.service(cluster)
-
-	if r.compareService(existsService, updatedService) {
-		logger.Info("Nothing to update on Service")
-		return false, nil
-	}
-
-	if err = r.Update(ctx, updatedService); err != nil {
-		logger.Error(err, "Error on Updating Service...")
+	requeue, err = r.setReadService(ctx, cluster)
+	if err != nil {
 		return false, err
 	}
+	if requeue {
+		return true, nil
+	}
 
-	logger.Info("Service Updated")
-	return true, nil
+	requeue, err = r.setMetricsService(ctx, cluster)
+	if err != nil {
+		return false, err
+	}
+	if requeue {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (r *OpenldapClusterReconciler) getService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
+	name string,
 ) (*corev1.Service, error) {
-
 	service := &corev1.Service{}
 
-	err := r.Client.Get(
+	err := r.Get(
 		ctx,
-		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
+		types.NamespacedName{Name: name, Namespace: cluster.Namespace},
 		service,
 	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return service, nil
+	return service, err
 }
 
-func (r *OpenldapClusterReconciler) service(
+func (r *OpenldapClusterReconciler) setWriteService(
+	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
-) *corev1.Service {
+) (bool, error) {
+	logger := log.FromContext(ctx)
+	existsService, err := r.getService(ctx, cluster, cluster.WriteServiceName())
 
-	ldapPort := intstr.FromInt(389)
-	ldapsPort := intstr.FromInt(636)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on getting write service....")
+			return false, err
+		}
 
-	ports := []corev1.ServicePort{
-		{
-			Name:       "ldap",
-			Protocol:   "TCP",
-			Port:       cluster.LdapPort(),
-			TargetPort: ldapPort,
-		},
-		{
-			Name:     metricsPortName,
-			Protocol: "TCP",
-			Port:     metricsPort,
-		},
+		newService := services.CreateWriteService(cluster)
+
+		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+			logger.Error(err, "Error on Registering Write Service...")
+			return false, nil
+		}
+
+		if err = r.Create(ctx, newService); err != nil {
+			logger.Error(err, "Error on Creating Write Service...")
+			return false, nil
+		}
+
+		logger.Info("Write Service Created")
+		return true, nil
 	}
 
-	if cluster.TlsEnabled() {
-		ports = append(ports, corev1.ServicePort{
-			Name:       "ldaps",
-			Protocol:   "TCP",
-			Port:       cluster.LdapsPort(),
-			TargetPort: ldapsPort,
-		})
+	newService := services.CreateWriteService(cluster)
+
+	if !r.compareService(existsService, newService) {
+		if err = r.Update(ctx, newService); err != nil {
+			logger.Error(err, "Error on Updating Write Service...")
+			return false, err
+		}
+
+		logger.Info("Write Service Updated")
+		return true, nil
 	}
 
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name,
-			Namespace: cluster.Namespace,
-			Labels:    cluster.SelectorLabels(),
-		},
-		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
-			Selector: cluster.SelectorLabels(),
-			Ports:    ports,
-		},
+	logger.Info("Nothing to change on write service")
+	return false, nil
+}
+
+func (r *OpenldapClusterReconciler) setReadService(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) (bool, error) {
+	logger := log.FromContext(ctx)
+	existsService, err := r.getService(ctx, cluster, cluster.ReadServiceName())
+
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on getting read service....")
+			return false, err
+		}
+
+		newService := services.CreateReadService(cluster)
+
+		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+			logger.Error(err, "Error on Registering Read Service...")
+			return false, nil
+		}
+
+		if err = r.Create(ctx, newService); err != nil {
+			logger.Error(err, "Error on Creating read Service...")
+			return false, nil
+		}
+
+		logger.Info("Read Service Created")
+		return true, nil
 	}
+
+	newService := services.CreateReadService(cluster)
+
+	if !r.compareService(existsService, newService) {
+		if err = r.Update(ctx, newService); err != nil {
+			logger.Error(err, "Error on Updating Read Service...")
+			return false, err
+		}
+
+		logger.Info("Read Service Updated")
+		return true, nil
+	}
+
+	logger.Info("Nothing to change on read service")
+	return false, nil
+}
+
+func (r *OpenldapClusterReconciler) setMetricsService(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) (bool, error) {
+	logger := log.FromContext(ctx)
+	existsService, err := r.getService(ctx, cluster, cluster.MetricsServiceName())
+
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on getting metrics service....")
+			return false, err
+		}
+
+		newService := services.CreateMetricsService(cluster)
+
+		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+			logger.Error(err, "Error on Registering Metrics Service...")
+			return false, nil
+		}
+
+		if err = r.Create(ctx, newService); err != nil {
+			logger.Error(err, "Error on Creating Metrics Service...")
+			return false, nil
+		}
+
+		logger.Info("Metrics Service Created")
+		return true, nil
+	}
+
+	newService := services.CreateMetricsService(cluster)
+
+	if !r.compareService(existsService, newService) {
+		if err = r.Update(ctx, newService); err != nil {
+			logger.Error(err, "Error on Updating Metrics Service...")
+			return false, err
+		}
+
+		logger.Info("Metrics Service Updated")
+		return true, nil
+	}
+
+	logger.Info("Nothing to change on Metrics service")
+	return false, nil
 }
 
 func (r *OpenldapClusterReconciler) compareService(
 	exists *corev1.Service,
 	new *corev1.Service,
 ) bool {
-	for label, value := range new.Labels {
-		if exists.Labels[label] != value {
-			return false
-		}
+	if !utils.CompareLabels(exists.Labels, new.Labels) {
+		return false
 	}
 
-	for annotation, value := range new.Annotations {
-		if exists.Annotations[annotation] != value {
-			return false
-		}
+	if !utils.CompareLabels(exists.Annotations, new.Labels) {
+		return false
 	}
 
-	return reflect.DeepEqual(exists.Spec, new.Spec)
+	return reflect.DeepEqual(exists.Spec.Ports, new.Spec.Ports)
 }
