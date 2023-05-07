@@ -91,18 +91,18 @@ func (r *OpenldapClusterReconciler) setWriteService(
 
 	newService := services.CreateWriteService(cluster)
 
-	if !r.compareService(existsService, newService) {
-		if err = r.Update(ctx, newService); err != nil {
-			logger.Error(err, "Error on Updating Write Service...")
-			return false, err
-		}
-
-		logger.Info("Write Service Updated")
-		return true, nil
+	if r.compareService(existsService, newService) {
+		logger.Info("Nothing to change on write service")
+		return false, nil
 	}
 
-	logger.Info("Nothing to change on write service")
-	return false, nil
+	if err = r.Update(ctx, newService); err != nil {
+		logger.Error(err, "Error on Updating Write Service...")
+		return false, err
+	}
+
+	logger.Info("Write Service Updated")
+	return true, nil
 }
 
 func (r *OpenldapClusterReconciler) setReadService(
@@ -136,18 +136,18 @@ func (r *OpenldapClusterReconciler) setReadService(
 
 	newService := services.CreateReadService(cluster)
 
-	if !r.compareService(existsService, newService) {
-		if err = r.Update(ctx, newService); err != nil {
-			logger.Error(err, "Error on Updating Read Service...")
-			return false, err
-		}
-
-		logger.Info("Read Service Updated")
-		return true, nil
+	if r.compareService(existsService, newService) {
+		logger.Info("Nothing to change on read service")
+		return false, nil
 	}
 
-	logger.Info("Nothing to change on read service")
-	return false, nil
+	if err = r.Update(ctx, newService); err != nil {
+		logger.Error(err, "Error on Updating Read Service...")
+		return false, err
+	}
+
+	logger.Info("Read Service Updated")
+	return true, nil
 }
 
 func (r *OpenldapClusterReconciler) setMetricsService(
@@ -181,18 +181,18 @@ func (r *OpenldapClusterReconciler) setMetricsService(
 
 	newService := services.CreateMetricsService(cluster)
 
-	if !r.compareService(existsService, newService) {
-		if err = r.Update(ctx, newService); err != nil {
-			logger.Error(err, "Error on Updating Metrics Service...")
-			return false, err
-		}
-
-		logger.Info("Metrics Service Updated")
-		return true, nil
+	if r.compareService(existsService, newService) {
+		logger.Info("Nothing to change on Metrics service")
+		return false, nil
 	}
 
-	logger.Info("Nothing to change on Metrics service")
-	return false, nil
+	if err = r.Update(ctx, newService); err != nil {
+		logger.Error(err, "Error on Updating Metrics Service...")
+		return false, err
+	}
+
+	logger.Info("Metrics Service Updated")
+	return true, nil
 }
 
 func (r *OpenldapClusterReconciler) compareService(

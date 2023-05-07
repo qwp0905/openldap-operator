@@ -32,7 +32,7 @@ func CreateReadService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Ports:    ports,
-			Selector: cluster.SlaveSelectorLabels(),
+			Selector: cluster.SelectorLabels(),
 		},
 	}
 }

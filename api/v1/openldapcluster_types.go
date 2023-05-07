@@ -3,7 +3,6 @@ package v1
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,16 +66,18 @@ type OpenldapConfig struct {
 	AdminPassword *corev1.SecretKeySelector `json:"adminPassword,omitempty"`
 
 	//+optional
-	AdminUsername *corev1.SecretKeySelector `json:"adminUsername,omitempty"`
+	//+kubebuilder:default:=admin
+	AdminUsername string `json:"adminUsername,omitempty"`
 
 	//+optional
+	//+kubebuilder:default:=config
 	ConfigPassword *corev1.SecretKeySelector `json:"configPassword,omitempty"`
 
 	//+optional
-	ConfigUsername *corev1.SecretKeySelector `json:"configUsername,omitempty"`
+	ConfigUsername string `json:"configUsername,omitempty"`
 
 	//+kubebuilder:validation:Required
-	Domain string `json:"domain,omitempty"`
+	Root string `json:"root,omitempty"`
 
 	//+optional
 	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
@@ -152,16 +153,19 @@ type OpenldapClusterList struct {
 
 const (
 	defaultTlsEnabled     = false
-	defaultDomain         = "dc=example,dc=com"
-	defaultBackend        = "mdb"
+	defaultRoot           = "dc=example,dc=com"
 	defaultLogLevel       = "info"
 	defaultMonitorEnabled = false
+	defaultAdmin          = "admin"
+	defaultConfig         = "config"
 )
 
 func (r *OpenldapCluster) SetDefault() {
 	if r.Spec.OpenldapConfig == nil {
 		r.Spec.OpenldapConfig = &OpenldapConfig{
-			Domain: defaultDomain,
+			Root:           defaultRoot,
+			AdminUsername:  defaultAdmin,
+			ConfigUsername: defaultConfig,
 		}
 	}
 
@@ -183,8 +187,8 @@ func (r *OpenldapCluster) SetDefault() {
 		}
 	}
 
-	if r.Spec.OpenldapConfig.Domain == "" {
-		r.Spec.OpenldapConfig.Domain = defaultDomain
+	if r.Spec.OpenldapConfig.Root == "" {
+		r.Spec.OpenldapConfig.Root = defaultRoot
 	}
 
 	if r.Spec.Monitor == nil {
@@ -265,6 +269,13 @@ func (r *OpenldapCluster) SlaveSelectorLabels() (labels map[string]string) {
 	return
 }
 
+func (r *OpenldapCluster) JobLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name":     r.Name,
+		"app.kubernetes.io/instance": "election",
+	}
+}
+
 func (r *OpenldapCluster) ReadServiceName() string {
 	return fmt.Sprintf("%s-read", r.Name)
 }
@@ -285,13 +296,12 @@ func (r *OpenldapCluster) ExporterName() string {
 	return fmt.Sprintf("%s-exporter", r.Name)
 }
 
-func (r *OpenldapCluster) BindDn() string {
-	dnList := []string{}
-	for _, el := range strings.Split(r.Spec.OpenldapConfig.Domain, ".") {
-		dnList = append(dnList, fmt.Sprintf("dc=%s", el))
-	}
+func (r *OpenldapCluster) ExporterImage() string {
+	return "qwp1216/openldap-exporter:0.0.4"
+}
 
-	return fmt.Sprintf("cn=admin,%s", strings.Join(dnList, ","))
+func (r *OpenldapCluster) AdminDn() string {
+	return fmt.Sprintf("cn=%s,%s", r.Spec.OpenldapConfig.AdminUsername, r.Spec.OpenldapConfig.Root)
 }
 
 func (r *OpenldapCluster) TlsEnabled() bool {
@@ -328,6 +338,14 @@ func (r *OpenldapCluster) LdapsPort() int32 {
 
 func (r *OpenldapCluster) SeedDataPath() string {
 	return "/ldifs"
+}
+
+func (r *OpenldapCluster) UpdateMaster(index int) {
+	r.Status.Master = r.PodName(index)
+}
+
+func (r *OpenldapCluster) IsMasterUpdated() bool {
+	return r.Status.Master != ""
 }
 
 func init() {
