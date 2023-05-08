@@ -30,6 +30,12 @@ func defaultConfigMapData(cluster *openldapv1.OpenldapCluster) (data map[string]
 		"LDAP_CONFIG_ADMIN_ENABLED":  "yes",
 		"LDAP_ADMIN_USERNAME":        cluster.Spec.OpenldapConfig.AdminUsername,
 		"LDAP_CONFIG_ADMIN_PASSWORD": cluster.Spec.OpenldapConfig.ConfigUsername,
+		"MASTER_HOST": fmt.Sprintf(
+			"%s.%s.svc.cluster.local:%s",
+			cluster.WriteServiceName(),
+			cluster.Namespace,
+			strconv.Itoa(int(cluster.LdapPort())),
+		),
 	}
 
 	if cluster.TlsEnabled() {

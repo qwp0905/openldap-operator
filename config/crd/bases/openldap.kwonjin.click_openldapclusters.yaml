@@ -1525,8 +1525,6 @@ spec:
                 type: string
               phase:
                 type: string
-              readyReplicas:
-                type: integer
             type: object
         type: object
     served: true

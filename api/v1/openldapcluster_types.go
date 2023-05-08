@@ -9,6 +9,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	PhaseCreating = "Creating"
+	PhaseRunning  = "Running"
+	PhasePending  = "Pending"
+	PhaseFailed   = "Failed"
+)
+
 // OpenldapClusterSpec defines the desired state of OpenldapCluster
 type OpenldapClusterSpec struct {
 	// Openldap image based on qwp1216/openldap
@@ -124,8 +131,6 @@ type OpenldapClusterStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
 	Master string `json:"master,omitempty"`
-
-	ReadyReplicas int `json:"readyReplicas,omitempty"`
 
 	Phase string `json:"phase,omitempty"`
 }
@@ -250,6 +255,10 @@ func (r *OpenldapCluster) PodName(index int) string {
 	)
 }
 
+func (r *OpenldapCluster) GetReplicas() int {
+	return int(r.Spec.Replicas)
+}
+
 func (r *OpenldapCluster) SelectorLabels() map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":     r.Name,
@@ -342,6 +351,10 @@ func (r *OpenldapCluster) SeedDataPath() string {
 
 func (r *OpenldapCluster) UpdateMaster(index int) {
 	r.Status.Master = r.PodName(index)
+}
+
+func (r *OpenldapCluster) UpdatePhase(phase string) {
+	r.Status.Phase = phase
 }
 
 func (r *OpenldapCluster) IsMasterUpdated() bool {

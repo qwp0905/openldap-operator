@@ -1,9 +1,6 @@
 package pods
 
 import (
-	"fmt"
-	"strconv"
-
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,15 +12,6 @@ func CreateSlavePod(cluster *openldapv1.OpenldapCluster, index int) *corev1.Pod 
 		corev1.EnvVar{
 			Name:  "ROLE",
 			Value: "slave",
-		},
-		corev1.EnvVar{
-			Name: "MASTER_HOST",
-			Value: fmt.Sprintf(
-				"%s.%s.svc.cluster.local:%s",
-				cluster.WriteServiceName(),
-				cluster.Namespace,
-				strconv.Itoa(int(cluster.LdapPort())),
-			),
 		},
 	)
 
