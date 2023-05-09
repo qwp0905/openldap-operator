@@ -41,24 +41,25 @@ func (r *OpenldapClusterReconciler) election(
 			return true, nil
 		}
 
-		nextIndex, err := r.getAlivePodIndex(ctx, cluster)
-		if err != nil {
-			logger.Error(err, "Error on get pods...")
+		if err = r.newElection(ctx, cluster); err != nil {
 			return false, err
 		}
 
-		cluster.UpdateMaster(nextIndex)
-		cluster.UpdatePhase(openldapv1.PhasePending)
-
-		if err := r.Status().Update(ctx, cluster); err != nil {
-			logger.Error(err, "Error on Updating Cluster Status....")
-			return false, err
-		}
-
-		logger.Info(fmt.Sprintf("Master Pod Set %s", nextIndex))
 		return true, nil
 	}
 
+	if !utils.IsPodAlive(*masterPod) {
+		if err = r.newElection(ctx, cluster); err != nil {
+			return false, err
+		}
+
+		if err = r.Delete(ctx, masterPod); err != nil {
+			logger.Error(err, "Error on deleting failed pod...")
+			return false, err
+		}
+
+		return true, nil
+	}
 }
 
 func (r *OpenldapClusterReconciler) getAlivePodIndex(
@@ -79,4 +80,27 @@ func (r *OpenldapClusterReconciler) getAlivePodIndex(
 	}
 
 	return 0, fmt.Errorf("No Pod Alive")
+}
+
+func (r *OpenldapClusterReconciler) newElection(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) error {
+	logger := log.FromContext(ctx)
+
+	nextIndex, err := r.getAlivePodIndex(ctx, cluster)
+	if err != nil {
+		logger.Error(err, "Error on get pods...")
+		return err
+	}
+
+	cluster.UpdateMaster(nextIndex)
+	cluster.UpdatePhase(openldapv1.PhasePending)
+
+	if err := r.Status().Update(ctx, cluster); err != nil {
+		logger.Error(err, "Error on Updating Cluster Status....")
+		return err
+	}
+
+	return nil
 }
