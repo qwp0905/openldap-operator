@@ -110,6 +110,14 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
+	requeue, err = r.election(ctx, cluster)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 

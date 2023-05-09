@@ -5,8 +5,13 @@ import (
 	"fmt"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
+	"github.com/qwp0905/openldap-operator/pkg/jobs"
 	"github.com/qwp0905/openldap-operator/pkg/utils"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -16,8 +21,8 @@ func (r *OpenldapClusterReconciler) election(
 ) (bool, error) {
 	logger := log.FromContext(ctx)
 
-	if cluster.Status.Master == "" {
-		cluster.UpdateMaster(0)
+	if cluster.GetDesiredMaster() == "" {
+		cluster.UpdateDesiredMaster(0)
 		cluster.UpdatePhase(openldapv1.PhaseCreating)
 
 		if err := r.Status().Update(ctx, cluster); err != nil {
@@ -60,6 +65,54 @@ func (r *OpenldapClusterReconciler) election(
 
 		return true, nil
 	}
+
+	if cluster.IsMasterSame() {
+		logger.Info("Nothing to update on pod")
+		return false, nil
+	}
+
+	existsJob, err := r.getJob(ctx, cluster)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on Get job....")
+			return false, err
+		}
+
+		newJob := jobs.CreateSlaveToMasterJob(cluster)
+
+		if err = ctrl.SetControllerReference(cluster, newJob, r.Scheme); err != nil {
+			logger.Error(err, "Error on registering job...")
+			return false, err
+		}
+
+		if err = r.Create(ctx, newJob); err != nil {
+			logger.Error(err, "Error on Creating Job...")
+			return false, err
+		}
+
+		logger.Info("Master Job Created")
+		return true, nil
+	}
+
+	if !utils.JobHasOneCompletion(*existsJob) {
+		logger.Info("Waiting for job complete")
+		return true, nil
+	}
+
+	cluster.UpdateCurrentMaster()
+
+	if err = r.Status().Update(ctx, cluster); err != nil {
+		logger.Error(err, "Error on Updating Status Current master....")
+		return false, err
+	}
+
+	if err = r.Delete(ctx, existsJob); err != nil {
+		logger.Error(err, "Error on Deleting job...")
+		return false, err
+	}
+
+	logger.Info("Master Pod Updated")
+	return true, nil
 }
 
 func (r *OpenldapClusterReconciler) getAlivePodIndex(
@@ -94,7 +147,7 @@ func (r *OpenldapClusterReconciler) newElection(
 		return err
 	}
 
-	cluster.UpdateMaster(nextIndex)
+	cluster.UpdateDesiredMaster(nextIndex)
 	cluster.UpdatePhase(openldapv1.PhasePending)
 
 	if err := r.Status().Update(ctx, cluster); err != nil {
@@ -103,4 +156,52 @@ func (r *OpenldapClusterReconciler) newElection(
 	}
 
 	return nil
+}
+
+func (r *OpenldapClusterReconciler) getJob(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) (*batchv1.Job, error) {
+	job := &batchv1.Job{}
+
+	if err := r.Get(
+		ctx,
+		types.NamespacedName{Name: cluster.GetDesiredMaster(), Namespace: cluster.Namespace},
+		job,
+	); err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
+func (r *OpenldapClusterReconciler) getMasterPod(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+) (*corev1.Pod, error) {
+	pod := &corev1.Pod{}
+
+	err := r.Get(
+		ctx,
+		types.NamespacedName{Name: cluster.Status.DesiredMaster, Namespace: cluster.Name},
+		pod,
+	)
+
+	return pod, err
+}
+
+func (r *OpenldapClusterReconciler) getPod(
+	ctx context.Context,
+	cluster *openldapv1.OpenldapCluster,
+	index int,
+) (*corev1.Pod, error) {
+	pod := &corev1.Pod{}
+
+	err := r.Get(
+		ctx,
+		types.NamespacedName{Name: cluster.PodName(index), Namespace: cluster.Name},
+		pod,
+	)
+
+	return pod, err
 }

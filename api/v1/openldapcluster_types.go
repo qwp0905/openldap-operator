@@ -130,9 +130,11 @@ type MonitorConfig struct {
 type OpenldapClusterStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
-	Master string `json:"master,omitempty"`
-
 	Phase string `json:"phase,omitempty"`
+
+	CurrentMaster string `json:"currentMaster,omitempty"`
+
+	DesiredMaster string `json:"desiredMaster,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -349,16 +351,28 @@ func (r *OpenldapCluster) SeedDataPath() string {
 	return "/ldifs"
 }
 
-func (r *OpenldapCluster) UpdateMaster(index int) {
-	r.Status.Master = r.PodName(index)
+func (r *OpenldapCluster) GetDesiredMaster() string {
+	return r.Status.DesiredMaster
+}
+
+func (r *OpenldapCluster) GetCurrentMaster() string {
+	return r.Status.CurrentMaster
+}
+
+func (r *OpenldapCluster) IsMasterSame() bool {
+	return r.Status.CurrentMaster == r.Status.DesiredMaster
+}
+
+func (r *OpenldapCluster) UpdateDesiredMaster(index int) {
+	r.Status.DesiredMaster = r.PodName(index)
+}
+
+func (r *OpenldapCluster) UpdateCurrentMaster() {
+	r.Status.CurrentMaster = r.Status.DesiredMaster
 }
 
 func (r *OpenldapCluster) UpdatePhase(phase string) {
 	r.Status.Phase = phase
-}
-
-func (r *OpenldapCluster) IsMasterUpdated() bool {
-	return r.Status.Master != ""
 }
 
 func init() {
