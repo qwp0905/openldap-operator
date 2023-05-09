@@ -77,9 +77,5 @@ func (r *OpenldapClusterReconciler) compareRoleBinding(
 	exists *rbacv1.RoleBinding,
 	new *rbacv1.RoleBinding,
 ) bool {
-	if !utils.CompareLabels(exists.Labels, new.Labels) {
-		return false
-	}
-
-	return true
+	return utils.CompareLabels(exists.Labels, new.Labels)
 }

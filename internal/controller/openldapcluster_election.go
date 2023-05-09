@@ -30,7 +30,7 @@ func (r *OpenldapClusterReconciler) election(
 			return false, err
 		}
 
-		logger.Info(fmt.Sprintf("Master Pod Set 0"))
+		logger.Info("Master Pod Set 0")
 		return true, nil
 	}
 
@@ -67,6 +67,12 @@ func (r *OpenldapClusterReconciler) election(
 	}
 
 	if cluster.IsMasterSame() {
+		cluster.UpdatePhase(openldapv1.PhaseRunning)
+		if err = r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Cluster status Running...")
+			return false, err
+		}
+
 		logger.Info("Nothing to update on pod")
 		return false, nil
 	}
@@ -132,7 +138,7 @@ func (r *OpenldapClusterReconciler) getAlivePodIndex(
 		}
 	}
 
-	return 0, fmt.Errorf("No Pod Alive")
+	return 0, fmt.Errorf("no Pod Alive")
 }
 
 func (r *OpenldapClusterReconciler) newElection(

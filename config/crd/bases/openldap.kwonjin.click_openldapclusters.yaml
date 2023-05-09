@@ -1521,7 +1521,9 @@ spec:
                   - type
                   type: object
                 type: array
-              master:
+              currentMaster:
+                type: string
+              desiredMaster:
                 type: string
               phase:
                 type: string
