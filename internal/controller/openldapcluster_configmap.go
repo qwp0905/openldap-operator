@@ -45,7 +45,6 @@ func (r *OpenldapClusterReconciler) setConfigMap(
 	updatedConfigMap := configmaps.CreateConfigMap(cluster)
 
 	if r.compareConfigMap(existsConfigMap, updatedConfigMap) {
-		logger.Info("Nothing to Update on ConfigMap")
 		return false, nil
 	}
 
@@ -67,16 +66,18 @@ func (r *OpenldapClusterReconciler) getConfigMap(
 ) (*corev1.ConfigMap, error) {
 	configMap := &corev1.ConfigMap{}
 
-	err := r.Client.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{
 			Name:      cluster.ConfigMapName(),
 			Namespace: cluster.Namespace,
 		},
 		configMap,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return configMap, err
+	return configMap, nil
 }
 
 func (r *OpenldapClusterReconciler) compareConfigMap(

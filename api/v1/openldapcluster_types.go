@@ -38,7 +38,7 @@ type OpenldapClusterSpec struct {
 	OpenldapConfig *OpenldapConfig `json:"openldapConfig,omitempty"`
 
 	//+optional
-	Ports *PortConfig `json:"port,omitempty"`
+	Ports *PortConfig `json:"ports,omitempty"`
 
 	//+optional
 	Monitor *MonitorConfig `json:"monitor,omitempty"`
@@ -77,10 +77,10 @@ type OpenldapConfig struct {
 	AdminUsername string `json:"adminUsername,omitempty"`
 
 	//+optional
-	//+kubebuilder:default:=config
 	ConfigPassword *corev1.SecretKeySelector `json:"configPassword,omitempty"`
 
 	//+optional
+	//+kubebuilder:default:=config
 	ConfigUsername string `json:"configUsername,omitempty"`
 
 	//+kubebuilder:validation:Required
@@ -88,6 +88,9 @@ type OpenldapConfig struct {
 
 	//+optional
 	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
+
+	//+optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 type SecretOrConfigMapVolumeSource struct {

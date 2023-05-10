@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"reflect"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	"github.com/qwp0905/openldap-operator/pkg/services"
@@ -52,12 +51,15 @@ func (r *OpenldapClusterReconciler) getService(
 ) (*corev1.Service, error) {
 	service := &corev1.Service{}
 
-	err := r.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{Name: name, Namespace: cluster.Namespace},
 		service,
-	)
-	return service, err
+	); err != nil {
+		return nil, err
+	}
+
+	return service, nil
 }
 
 func (r *OpenldapClusterReconciler) setWriteService(
@@ -92,7 +94,6 @@ func (r *OpenldapClusterReconciler) setWriteService(
 	newService := services.CreateWriteService(cluster)
 
 	if r.compareService(existsService, newService) {
-		logger.Info("Nothing to change on write service")
 		return false, nil
 	}
 
@@ -137,7 +138,6 @@ func (r *OpenldapClusterReconciler) setReadService(
 	newService := services.CreateReadService(cluster)
 
 	if r.compareService(existsService, newService) {
-		logger.Info("Nothing to change on read service")
 		return false, nil
 	}
 
@@ -182,7 +182,6 @@ func (r *OpenldapClusterReconciler) setMetricsService(
 	newService := services.CreateMetricsService(cluster)
 
 	if r.compareService(existsService, newService) {
-		logger.Info("Nothing to change on Metrics service")
 		return false, nil
 	}
 
@@ -203,9 +202,24 @@ func (r *OpenldapClusterReconciler) compareService(
 		return false
 	}
 
-	if !utils.CompareLabels(exists.Annotations, new.Labels) {
+	if !utils.CompareLabels(exists.Annotations, new.Annotations) {
 		return false
 	}
 
-	return reflect.DeepEqual(exists.Spec.Ports, new.Spec.Ports)
+	exPorts := []int32{}
+	for _, p := range exists.Spec.Ports {
+		exPorts = append(exPorts, p.Port)
+	}
+
+	result := true
+	for _, ne := range new.Spec.Ports {
+		rr := false
+		for _, ex := range exPorts {
+			rr = (ne.Port == ex) || rr
+		}
+
+		result = result && rr
+	}
+
+	return result
 }

@@ -13,7 +13,7 @@ import (
 func CreateConfigMap(cluster *openldapv1.OpenldapCluster) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name,
+			Name:      cluster.ConfigMapName(),
 			Namespace: cluster.Namespace,
 			Labels:    cluster.SelectorLabels(),
 		},
@@ -31,7 +31,7 @@ func defaultConfigMapData(cluster *openldapv1.OpenldapCluster) (data map[string]
 		"LDAP_ADMIN_USERNAME":        cluster.Spec.OpenldapConfig.AdminUsername,
 		"LDAP_CONFIG_ADMIN_PASSWORD": cluster.Spec.OpenldapConfig.ConfigUsername,
 		"MASTER_HOST": fmt.Sprintf(
-			"%s.%s.svc.cluster.local:%s",
+			"ldap://%s.%s.svc.cluster.local:%s",
 			cluster.WriteServiceName(),
 			cluster.Namespace,
 			strconv.Itoa(int(cluster.LdapPort())),

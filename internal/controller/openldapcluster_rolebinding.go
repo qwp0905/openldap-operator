@@ -45,7 +45,6 @@ func (r *OpenldapClusterReconciler) setRoleBinding(
 	newRoleBinding := rbac.CreateRoleBinding(cluster)
 
 	if r.compareRoleBinding(existsRoleBinding, newRoleBinding) {
-		logger.Info("Nothing to change on RoleBinding")
 		return false, nil
 	}
 
@@ -64,13 +63,15 @@ func (r *OpenldapClusterReconciler) getRoleBinding(
 ) (*rbacv1.RoleBinding, error) {
 	roleBinding := &rbacv1.RoleBinding{}
 
-	err := r.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
 		roleBinding,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return roleBinding, err
+	return roleBinding, nil
 }
 
 func (r *OpenldapClusterReconciler) compareRoleBinding(

@@ -38,7 +38,7 @@ func CreateSlaveToMasterJob(cluster *openldapv1.OpenldapCluster) *batchv1.Job {
 								"/bin/bash",
 								"-c",
 								fmt.Sprintf(
-									`kubectl exec %s -n %s -- /bin/bash -c "/opt/repl/master"`,
+									`kubectl exec %s -n %s -- /bin/bash -c "sh /opt/repl/master"`,
 									cluster.GetDesiredMaster(),
 									cluster.Namespace,
 								),

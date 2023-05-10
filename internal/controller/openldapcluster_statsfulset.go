@@ -45,7 +45,6 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 	updatedStatefulset := statefulsets.CreateStatefulset(cluster)
 
 	if compareStatefulset(existsStatefulset, updatedStatefulset) {
-		logger.Info("Nothing to update on Statefulset")
 		return false, nil
 	}
 
@@ -89,5 +88,5 @@ func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) boo
 		return false
 	}
 
-	return exists.Spec.Replicas == new.Spec.Replicas
+	return *exists.Spec.Replicas == *new.Spec.Replicas
 }

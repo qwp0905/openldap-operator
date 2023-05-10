@@ -45,7 +45,6 @@ func (r *OpenldapClusterReconciler) setRole(
 	newRole := rbac.CreateRole(cluster)
 
 	if r.compareRole(existsRole, newRole) {
-		logger.Info("Nothing to change on write service")
 		return false, nil
 	}
 
@@ -64,13 +63,15 @@ func (r *OpenldapClusterReconciler) getRole(
 ) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{}
 
-	err := r.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
 		role,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return role, err
+	return role, nil
 }
 
 func (r *OpenldapClusterReconciler) compareRole(

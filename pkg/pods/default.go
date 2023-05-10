@@ -93,7 +93,7 @@ func ConfigEnvFrom(cluster *openldapv1.OpenldapCluster) corev1.EnvFromSource {
 }
 
 func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
-	return []corev1.EnvVar{
+	envVars := []corev1.EnvVar{
 		{
 			Name: "LDAP_ADMIN_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
@@ -115,6 +115,12 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 			},
 		},
 	}
+
+	if cluster.Spec.OpenldapConfig.Env != nil && len(cluster.Spec.OpenldapConfig.Env) > 0 {
+		envVars = append(envVars, cluster.Spec.OpenldapConfig.Env...)
+	}
+
+	return envVars
 }
 
 func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort {

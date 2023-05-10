@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	"github.com/qwp0905/openldap-operator/pkg/jobs"
@@ -34,6 +35,16 @@ func (r *OpenldapClusterReconciler) election(
 		return true, nil
 	}
 
+	if cluster.IsMasterSame() {
+		cluster.UpdatePhase(openldapv1.PhaseRunning)
+		if err := r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Cluster status Running...")
+			return false, err
+		}
+
+		return false, nil
+	}
+
 	masterPod, err := r.getMasterPod(ctx, cluster)
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -53,7 +64,7 @@ func (r *OpenldapClusterReconciler) election(
 		return true, nil
 	}
 
-	if !utils.IsPodAlive(*masterPod) {
+	if !utils.IsPodAlive(*masterPod) && utils.IsPodReady(*masterPod) {
 		if err = r.newElection(ctx, cluster); err != nil {
 			return false, err
 		}
@@ -66,15 +77,9 @@ func (r *OpenldapClusterReconciler) election(
 		return true, nil
 	}
 
-	if cluster.IsMasterSame() {
-		cluster.UpdatePhase(openldapv1.PhaseRunning)
-		if err = r.Status().Update(ctx, cluster); err != nil {
-			logger.Error(err, "Error on Updating Cluster status Running...")
-			return false, err
-		}
-
-		logger.Info("Nothing to update on pod")
-		return false, nil
+	if !utils.IsPodReady(*masterPod) {
+		logger.Info("Waiting for pod ready")
+		return true, nil
 	}
 
 	existsJob, err := r.getJob(ctx, cluster)
@@ -128,12 +133,10 @@ func (r *OpenldapClusterReconciler) getAlivePodIndex(
 	for i := 0; i < cluster.GetReplicas(); i++ {
 		pod, err := r.getPod(ctx, cluster, i)
 		if err != nil {
-			if !errors.IsNotFound(err) {
-				return 0, err
-			}
+			continue
 		}
 
-		if utils.IsPodAlive(*pod) {
+		if utils.IsPodReady(*pod) {
 			return i, nil
 		}
 	}
@@ -161,6 +164,7 @@ func (r *OpenldapClusterReconciler) newElection(
 		return err
 	}
 
+	logger.Info(fmt.Sprintf("Desired Master Updated to %s", strconv.Itoa(nextIndex)))
 	return nil
 }
 
@@ -172,7 +176,10 @@ func (r *OpenldapClusterReconciler) getJob(
 
 	if err := r.Get(
 		ctx,
-		types.NamespacedName{Name: cluster.GetDesiredMaster(), Namespace: cluster.Namespace},
+		types.NamespacedName{
+			Name:      cluster.GetDesiredMaster(),
+			Namespace: cluster.Namespace,
+		},
 		job,
 	); err != nil {
 		return nil, err
@@ -187,13 +194,18 @@ func (r *OpenldapClusterReconciler) getMasterPod(
 ) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 
-	err := r.Get(
+	if err := r.Get(
 		ctx,
-		types.NamespacedName{Name: cluster.Status.DesiredMaster, Namespace: cluster.Name},
+		types.NamespacedName{
+			Name:      cluster.GetDesiredMaster(),
+			Namespace: cluster.Namespace,
+		},
 		pod,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return pod, err
+	return pod, nil
 }
 
 func (r *OpenldapClusterReconciler) getPod(
@@ -203,11 +215,16 @@ func (r *OpenldapClusterReconciler) getPod(
 ) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 
-	err := r.Get(
+	if err := r.Get(
 		ctx,
-		types.NamespacedName{Name: cluster.PodName(index), Namespace: cluster.Name},
+		types.NamespacedName{
+			Name:      cluster.PodName(index),
+			Namespace: cluster.Namespace,
+		},
 		pod,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return pod, err
+	return pod, nil
 }

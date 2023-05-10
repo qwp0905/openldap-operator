@@ -2,16 +2,16 @@ apiVersion: openldap.kwonjin.click/v1
 kind: OpenldapCluster
 metadata:
   labels:
-    app.kubernetes.io/name: openldapcluster
-    app.kubernetes.io/instance: openldapcluster-sample
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: openldap
     app.kubernetes.io/part-of: openldap-operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: openldap-operator
-  name: openldapcluster-sample
+  name: openldap
   namespace: tools
 spec:
-  image: osixia/openldap:stable
-  imagePullPolicy: IfNotPresent
+  image: qwp1216/openldap:2.6.4-repl
+  imagePullPolicy: Always
   replicas: 3
   resources:
     limits:
@@ -31,16 +31,21 @@ spec:
   openldapConfig:
     tls:
       enabled: false
+    adminUsername: admin
     adminPassword:
       key: password
       name: openldap
-    domain: cluster.local
-    organization: kwonjin
-    backend: mdb
+    configUsername: config
+    configPassword:
+      key: password
+      name: openldap
+    root: dc=cluster,dc=local
     seedData:
       configMap:
         name: openldap-bootstrap
-    logLevel: info
+    env:
+      - name: BITNAMI_DEBUG
+        value: "true"
   monitor:
     enabled: false
   ports:

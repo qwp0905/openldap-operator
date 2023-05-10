@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"reflect"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
@@ -18,6 +17,10 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
+	if !cluster.MonitorEnabled() {
+		return false, nil
+	}
+
 	logger := log.FromContext(ctx)
 	existsServiceMonitor, err := r.getServiceMonitor(ctx, cluster)
 
@@ -61,7 +64,6 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 	updatedServiceMonitor := monitors.CreateServiceMonitor(cluster)
 
 	if r.compareServiceMonitor(existsServiceMonitor, updatedServiceMonitor) {
-		logger.Info("NotThing to change on ServiceMonitor")
 		return false, nil
 	}
 
@@ -80,7 +82,7 @@ func (r *OpenldapClusterReconciler) getServiceMonitor(
 ) (*monitoringv1.ServiceMonitor, error) {
 	monitor := &monitoringv1.ServiceMonitor{}
 
-	if err := r.Client.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
 		monitor,
@@ -103,5 +105,10 @@ func (r *OpenldapClusterReconciler) compareServiceMonitor(
 		return false
 	}
 
-	return reflect.DeepEqual(exists.Spec.Endpoints, new.Spec.Endpoints)
+	exEp := exists.Spec.Endpoints[0]
+	neEp := new.Spec.Endpoints[0]
+
+	return exEp.Path == neEp.Path &&
+		exEp.Port == neEp.Port &&
+		exEp.Interval == neEp.Interval
 }

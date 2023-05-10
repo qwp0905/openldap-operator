@@ -45,7 +45,6 @@ func (r *OpenldapClusterReconciler) setServiceAccount(
 	updatedServiceAccount := rbac.CreateServiceAccount(cluster)
 
 	if r.compareServiceAccount(existsServiceAccount, updatedServiceAccount) {
-		logger.Info("Nothing to Update on ServiceAccount")
 		return false, nil
 	}
 
@@ -67,16 +66,18 @@ func (r *OpenldapClusterReconciler) getServiceAccount(
 ) (*corev1.ServiceAccount, error) {
 	serviceAccount := &corev1.ServiceAccount{}
 
-	err := r.Client.Get(
+	if err := r.Get(
 		ctx,
 		types.NamespacedName{
 			Name:      cluster.Name,
 			Namespace: cluster.Namespace,
 		},
 		serviceAccount,
-	)
+	); err != nil {
+		return nil, err
+	}
 
-	return serviceAccount, err
+	return serviceAccount, nil
 }
 
 func (r *OpenldapClusterReconciler) compareServiceAccount(

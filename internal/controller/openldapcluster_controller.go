@@ -133,7 +133,7 @@ func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Req
 	logger := log.FromContext(ctx)
 	cluster := &openldapv1.OpenldapCluster{}
 
-	if err := r.Client.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, cluster); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info("Delete")
 			return nil, nil
