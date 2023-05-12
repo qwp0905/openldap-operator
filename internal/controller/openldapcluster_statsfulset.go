@@ -9,7 +9,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -28,7 +27,7 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 
 		newStatefulset := statefulsets.CreateStatefulset(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newStatefulset, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newStatefulset); err != nil {
 			logger.Error(err, "Error on Registering Statefulset...")
 			return false, err
 		}
@@ -49,8 +48,8 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 	}
 
 	existsStatefulset.Spec.Replicas = updatedStatefulset.Spec.Replicas
-	existsStatefulset.ObjectMeta.Labels = updatedStatefulset.ObjectMeta.Labels
-	existsStatefulset.ObjectMeta.Annotations = updatedStatefulset.ObjectMeta.Annotations
+	existsStatefulset.SetLabels(updatedStatefulset.GetLabels())
+	existsStatefulset.SetAnnotations(updatedStatefulset.GetAnnotations())
 
 	if err = r.Update(ctx, existsStatefulset); err != nil {
 		logger.Error(err, "Error on Updating Statefulset...")

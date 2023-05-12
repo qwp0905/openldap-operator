@@ -12,14 +12,14 @@ metadata:
 spec:
   image: qwp1216/openldap:2.6.4-repl
   imagePullPolicy: Always
-  replicas: 3
+  replicas: 1
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 250m
+      memory: 256Mi
     requests:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 250m
+      memory: 256Mi
   storage:
     volumeClaimTemplate:
       storageClassName: standard

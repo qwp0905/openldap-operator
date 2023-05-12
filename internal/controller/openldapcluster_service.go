@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -77,7 +76,7 @@ func (r *OpenldapClusterReconciler) setWriteService(
 
 		newService := services.CreateWriteService(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newService); err != nil {
 			logger.Error(err, "Error on Registering Write Service...")
 			return false, nil
 		}
@@ -121,7 +120,7 @@ func (r *OpenldapClusterReconciler) setReadService(
 
 		newService := services.CreateReadService(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newService); err != nil {
 			logger.Error(err, "Error on Registering Read Service...")
 			return false, nil
 		}
@@ -165,7 +164,7 @@ func (r *OpenldapClusterReconciler) setMetricsService(
 
 		newService := services.CreateMetricsService(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newService, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newService); err != nil {
 			logger.Error(err, "Error on Registering Metrics Service...")
 			return false, nil
 		}

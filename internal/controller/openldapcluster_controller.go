@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,8 +58,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	err = r.setDefault(ctx, cluster)
-	if err != nil {
+	if err = r.setDefault(ctx, cluster); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -118,12 +118,12 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.election(ctx, cluster)
+	seconds, err := r.election(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if requeue {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
+	if seconds != 0 {
+		return ctrl.Result{RequeueAfter: time.Second * time.Duration(seconds)}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -134,13 +134,13 @@ func (r *OpenldapClusterReconciler) getCluster(ctx context.Context, req ctrl.Req
 	cluster := &openldapv1.OpenldapCluster{}
 
 	if err := r.Get(ctx, req.NamespacedName, cluster); err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info("Delete")
-			return nil, nil
+		if !errors.IsNotFound(err) {
+			logger.Error(err, "Error on Getting exists Cluster....")
+			return nil, err
 		}
 
-		logger.Error(err, "error")
-		return nil, err
+		logger.Info("Delete")
+		return nil, nil
 	}
 
 	return cluster, nil
@@ -166,6 +166,13 @@ func (r *OpenldapClusterReconciler) setDefault(
 	}
 
 	return nil
+}
+
+func (r *OpenldapClusterReconciler) registerObject(
+	cluster *openldapv1.OpenldapCluster,
+	object metav1.Object,
+) error {
+	return ctrl.SetControllerReference(cluster, object, r.Scheme)
 }
 
 // SetupWithManager sets up the controller with the Manager.

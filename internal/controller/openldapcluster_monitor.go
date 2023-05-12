@@ -9,7 +9,6 @@ import (
 	"github.com/qwp0905/openldap-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -36,8 +35,7 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 		}
 
 		newServiceMonitor := monitors.CreateServiceMonitor(cluster)
-		err = ctrl.SetControllerReference(cluster, newServiceMonitor, r.Scheme)
-		if err != nil {
+		if err = r.registerObject(cluster, newServiceMonitor); err != nil {
 			logger.Error(err, "Error on Registering ServiceMonitor...")
 			return false, err
 		}

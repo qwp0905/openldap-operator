@@ -10,10 +10,9 @@ import (
 )
 
 const (
-	PhaseCreating = "Creating"
-	PhaseRunning  = "Running"
-	PhasePending  = "Pending"
-	PhaseFailed   = "Failed"
+	ConditionInitialized = "Initialized"
+	ConditionReady       = "Ready"
+	ConditionElected     = "Elected"
 )
 
 // OpenldapClusterSpec defines the desired state of OpenldapCluster
@@ -132,8 +131,6 @@ type MonitorConfig struct {
 // OpenldapClusterStatus defines the observed state of OpenldapCluster
 type OpenldapClusterStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
-
-	Phase string `json:"phase,omitempty"`
 
 	CurrentMaster string `json:"currentMaster,omitempty"`
 
@@ -354,6 +351,10 @@ func (r *OpenldapCluster) SeedDataPath() string {
 	return "/ldifs"
 }
 
+func (r *OpenldapCluster) JobName() string {
+	return fmt.Sprintf("%s-job", r.GetDesiredMaster())
+}
+
 func (r *OpenldapCluster) GetDesiredMaster() string {
 	return r.Status.DesiredMaster
 }
@@ -374,8 +375,110 @@ func (r *OpenldapCluster) UpdateCurrentMaster() {
 	r.Status.CurrentMaster = r.Status.DesiredMaster
 }
 
-func (r *OpenldapCluster) UpdatePhase(phase string) {
-	r.Status.Phase = phase
+func (r *OpenldapCluster) DeleteCurrentMaster() {
+	r.Status.CurrentMaster = ""
+}
+
+func (r *OpenldapCluster) IsConditionsEmpty() bool {
+	if r.Status.Conditions == nil {
+		return true
+	}
+
+	return len(r.Status.Conditions) == 0
+}
+
+func (r *OpenldapCluster) GetCondition() metav1.Condition {
+	return r.Status.Conditions[0]
+}
+
+func (r *OpenldapCluster) SetInitCondition() {
+	r.Status.Conditions = []metav1.Condition{
+		{
+			Type:               ConditionInitialized,
+			Status:             metav1.ConditionTrue,
+			Reason:             ConditionInitialized,
+			LastTransitionTime: metav1.Now(),
+		},
+		{
+			Type:               ConditionReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             string(metav1.StatusReasonServiceUnavailable),
+			LastTransitionTime: metav1.Now(),
+		},
+		{
+			Type:               ConditionElected,
+			Status:             metav1.ConditionFalse,
+			Reason:             string(metav1.StatusReasonServiceUnavailable),
+			LastTransitionTime: metav1.Now(),
+		},
+	}
+}
+
+func (r *OpenldapCluster) IsInitialized() bool {
+	for _, con := range r.Status.Conditions {
+		if con.Type == ConditionInitialized && con.Status == metav1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *OpenldapCluster) IsReady() bool {
+	for _, con := range r.Status.Conditions {
+		if con.Type == ConditionReady && con.Status == metav1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *OpenldapCluster) IsElected() bool {
+	for _, con := range r.Status.Conditions {
+		if con.Type == ConditionElected && con.Status == metav1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *OpenldapCluster) SetConditionReady(condition bool) {
+	for _, con := range r.Status.Conditions {
+		if con.Type == ConditionReady {
+			con.LastTransitionTime = metav1.Now()
+			if condition {
+				con.Status = metav1.ConditionTrue
+			} else {
+				con.Status = metav1.ConditionFalse
+			}
+		}
+	}
+}
+
+func (r *OpenldapCluster) SetConditionElected(condition bool) {
+	for _, con := range r.Status.Conditions {
+		if con.Type == ConditionElected {
+			con.LastTransitionTime = metav1.Now()
+			if condition {
+				con.Status = metav1.ConditionTrue
+			} else {
+				con.Status = metav1.ConditionFalse
+			}
+		}
+	}
+}
+
+func (r *OpenldapCluster) DeleteInitializedCondition() {
+	conditions := []metav1.Condition{}
+	for _, con := range r.Status.Conditions {
+		if con.Type != ConditionInitialized {
+			conditions = append(conditions, con)
+		}
+	}
+
+	r.Status.Conditions = conditions
 }
 
 func init() {

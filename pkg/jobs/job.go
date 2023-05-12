@@ -14,7 +14,7 @@ func CreateSlaveToMasterJob(cluster *openldapv1.OpenldapCluster) *batchv1.Job {
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.GetDesiredMaster(),
+			Name:      cluster.JobName(),
 			Namespace: cluster.Namespace,
 			Labels:    cluster.JobLabels(),
 		},

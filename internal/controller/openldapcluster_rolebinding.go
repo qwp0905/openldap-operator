@@ -9,7 +9,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -28,7 +27,7 @@ func (r *OpenldapClusterReconciler) setRoleBinding(
 
 		newRoleBinding := rbac.CreateRoleBinding(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newRoleBinding, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newRoleBinding); err != nil {
 			logger.Error(err, "Error on Registering RoleBinding...")
 			return false, err
 		}

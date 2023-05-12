@@ -12,118 +12,147 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func (r *OpenldapClusterReconciler) election(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
-) (bool, error) {
+) (int, error) {
 	logger := log.FromContext(ctx)
+
+	if cluster.IsConditionsEmpty() {
+		cluster.SetInitCondition()
+
+		if err := r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Cluster Conditions....")
+			return 0, err
+		}
+
+		logger.Info("Cluster Condition Initialized")
+		return 2, nil
+	}
 
 	if cluster.GetDesiredMaster() == "" {
 		cluster.UpdateDesiredMaster(0)
-		cluster.UpdatePhase(openldapv1.PhaseCreating)
 
 		if err := r.Status().Update(ctx, cluster); err != nil {
-			logger.Error(err, "Error on Updating Cluster Status....")
-			return false, err
+			logger.Error(err, "Error on Updating Cluster Desired Master....")
+			return 0, err
 		}
 
 		logger.Info("Master Pod Set 0")
-		return true, nil
-	}
-
-	if cluster.IsMasterSame() {
-		cluster.UpdatePhase(openldapv1.PhaseRunning)
-		if err := r.Status().Update(ctx, cluster); err != nil {
-			logger.Error(err, "Error on Updating Cluster status Running...")
-			return false, err
-		}
-
-		return false, nil
+		return 2, nil
 	}
 
 	masterPod, err := r.getMasterPod(ctx, cluster)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			logger.Error(err, "Error on getting master pod....")
-			return false, err
+			return 0, err
 		}
 
-		if cluster.Status.Phase == openldapv1.PhaseCreating {
+		if cluster.IsInitialized() {
 			logger.Info("Waiting for first pod...")
-			return true, nil
+			return 5, nil
 		}
 
-		if err = r.newElection(ctx, cluster); err != nil {
-			return false, err
+		logger.Info("Election Triggered because of Pod Not Found....")
+		if err = r.electMaster(ctx, cluster); err != nil {
+			return 0, err
 		}
 
-		return true, nil
+		return 2, nil
 	}
 
-	if !utils.IsPodAlive(*masterPod) && utils.IsPodReady(*masterPod) {
-		if err = r.newElection(ctx, cluster); err != nil {
-			return false, err
+	if !utils.IsPodAlive(*masterPod) || !utils.IsPodReady(*masterPod) {
+		if cluster.IsInitialized() {
+			logger.Info("Waiting for pod ready")
+			return 10, nil
+		}
+
+		logger.Info("Election Triggered because of Pod Unhealthy....")
+		fmt.Println(masterPod.Status)
+		if err = r.electMaster(ctx, cluster); err != nil {
+			return 0, err
 		}
 
 		if err = r.Delete(ctx, masterPod); err != nil {
 			logger.Error(err, "Error on deleting failed pod...")
-			return false, err
+			return 0, err
 		}
 
-		return true, nil
+		return 2, nil
 	}
 
-	if !utils.IsPodReady(*masterPod) {
-		logger.Info("Waiting for pod ready")
-		return true, nil
+	if cluster.IsMasterSame() {
+		if !cluster.IsReady() {
+			cluster.DeleteInitializedCondition()
+			cluster.SetConditionReady(true)
+
+			if err := r.Status().Update(ctx, cluster); err != nil {
+				logger.Error(err, "Error on Updating Cluster status Running...")
+				return 0, err
+			}
+
+			return 2, nil
+		}
+
+		logger.Info("Everything ok")
+		return 10, nil
 	}
 
 	existsJob, err := r.getJob(ctx, cluster)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			logger.Error(err, "Error on Get job....")
-			return false, err
+			return 0, err
 		}
 
 		newJob := jobs.CreateSlaveToMasterJob(cluster)
 
-		if err = ctrl.SetControllerReference(cluster, newJob, r.Scheme); err != nil {
+		if err = r.registerObject(cluster, newJob); err != nil {
 			logger.Error(err, "Error on registering job...")
-			return false, err
+			return 0, err
 		}
 
 		if err = r.Create(ctx, newJob); err != nil {
 			logger.Error(err, "Error on Creating Job...")
-			return false, err
+			return 0, err
+		}
+
+		cluster.SetConditionElected(true)
+
+		if err = r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Status Elected...")
+			return 0, err
 		}
 
 		logger.Info("Master Job Created")
-		return true, nil
+		return 10, nil
 	}
 
 	if !utils.JobHasOneCompletion(*existsJob) {
 		logger.Info("Waiting for job complete")
-		return true, nil
+		return 5, nil
+	}
+
+	masterPod.SetLabels(cluster.MasterSelectorLabels())
+
+	if err = r.Update(ctx, masterPod); err != nil {
+		logger.Error(err, "Error on Updating labels to master...")
+		return 0, err
 	}
 
 	cluster.UpdateCurrentMaster()
 
 	if err = r.Status().Update(ctx, cluster); err != nil {
 		logger.Error(err, "Error on Updating Status Current master....")
-		return false, err
-	}
-
-	if err = r.Delete(ctx, existsJob); err != nil {
-		logger.Error(err, "Error on Deleting job...")
-		return false, err
+		return 0, err
 	}
 
 	logger.Info("Master Pod Updated")
-	return true, nil
+	return 2, nil
 }
 
 func (r *OpenldapClusterReconciler) getAlivePodIndex(
@@ -144,7 +173,7 @@ func (r *OpenldapClusterReconciler) getAlivePodIndex(
 	return 0, fmt.Errorf("no Pod Alive")
 }
 
-func (r *OpenldapClusterReconciler) newElection(
+func (r *OpenldapClusterReconciler) electMaster(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) error {
@@ -157,10 +186,11 @@ func (r *OpenldapClusterReconciler) newElection(
 	}
 
 	cluster.UpdateDesiredMaster(nextIndex)
-	cluster.UpdatePhase(openldapv1.PhasePending)
+	cluster.DeleteCurrentMaster()
+	cluster.SetConditionElected(false)
 
 	if err := r.Status().Update(ctx, cluster); err != nil {
-		logger.Error(err, "Error on Updating Cluster Status....")
+		logger.Error(err, "Error on Updating Cluster Condition Elected....")
 		return err
 	}
 
@@ -177,7 +207,7 @@ func (r *OpenldapClusterReconciler) getJob(
 	if err := r.Get(
 		ctx,
 		types.NamespacedName{
-			Name:      cluster.GetDesiredMaster(),
+			Name:      cluster.JobName(),
 			Namespace: cluster.Namespace,
 		},
 		job,

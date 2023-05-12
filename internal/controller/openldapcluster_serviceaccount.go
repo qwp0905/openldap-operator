@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -27,8 +26,8 @@ func (r *OpenldapClusterReconciler) setServiceAccount(
 		}
 
 		newServiceAccount := rbac.CreateServiceAccount(cluster)
-		err = ctrl.SetControllerReference(cluster, newServiceAccount, r.Scheme)
-		if err != nil {
+
+		if err = r.registerObject(cluster, newServiceAccount); err != nil {
 			logger.Error(err, "Error on Registering ServiceAccount...")
 			return false, err
 		}
