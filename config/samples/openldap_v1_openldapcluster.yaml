@@ -11,7 +11,7 @@ metadata:
   namespace: tools
 spec:
   image: qwp1216/openldap:2.6.4-repl
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:

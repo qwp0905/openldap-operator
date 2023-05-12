@@ -10,7 +10,7 @@ import (
 )
 
 func CreateSlaveToMasterJob(cluster *openldapv1.OpenldapCluster) *batchv1.Job {
-	ttl := int32(30)
+	ttl := int32(60)
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

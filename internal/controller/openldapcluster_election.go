@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -72,9 +73,12 @@ func (r *OpenldapClusterReconciler) election(
 		}
 
 		logger.Info("Election Triggered because of Pod Unhealthy....")
-		fmt.Println(masterPod.Status)
 		if err = r.electMaster(ctx, cluster); err != nil {
 			return 0, err
+		}
+
+		if cluster.GetReplicas() == 1 {
+			return 2, nil
 		}
 
 		if err = r.Delete(ctx, masterPod); err != nil {
@@ -82,77 +86,77 @@ func (r *OpenldapClusterReconciler) election(
 			return 0, err
 		}
 
+		logger.Info("Deleting Exists pod...")
 		return 2, nil
 	}
 
-	if cluster.IsMasterSame() {
-		if !cluster.IsReady() {
-			cluster.DeleteInitializedCondition()
-			cluster.SetConditionReady(true)
-
-			if err := r.Status().Update(ctx, cluster); err != nil {
-				logger.Error(err, "Error on Updating Cluster status Running...")
+	if !cluster.IsElected() {
+		existsJob, err := r.getJob(ctx, cluster)
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				logger.Error(err, "Error on Get job....")
 				return 0, err
 			}
 
-			return 2, nil
+			newJob := jobs.CreateSlaveToMasterJob(cluster)
+
+			if err = r.registerObject(cluster, newJob); err != nil {
+				logger.Error(err, "Error on registering job...")
+				return 0, err
+			}
+
+			if err = r.Create(ctx, newJob); err != nil {
+				logger.Error(err, "Error on Creating Job...")
+				return 0, err
+			}
+
+			cluster.SetConditionElected(true)
+
+			if err = r.Status().Update(ctx, cluster); err != nil {
+				logger.Error(err, "Error on Updating Status Elected...")
+				return 0, err
+			}
+
+			logger.Info("Master Job Created")
+			return 10, nil
 		}
 
-		logger.Info("Everything ok")
-		return 10, nil
+		if !utils.JobHasOneCompletion(*existsJob) {
+			logger.Info("Waiting for job complete")
+			return 5, nil
+		}
 	}
 
-	existsJob, err := r.getJob(ctx, cluster)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			logger.Error(err, "Error on Get job....")
+	if !cluster.IsMasterSame() {
+		copyMaster := masterPod.DeepCopy()
+		copyMaster.SetLabels(cluster.MasterSelectorLabels())
+		if err = r.Patch(ctx, copyMaster, client.MergeFrom(masterPod)); err != nil {
+			logger.Error(err, "Error on Updating labels to master...")
 			return 0, err
 		}
 
-		newJob := jobs.CreateSlaveToMasterJob(cluster)
-
-		if err = r.registerObject(cluster, newJob); err != nil {
-			logger.Error(err, "Error on registering job...")
-			return 0, err
-		}
-
-		if err = r.Create(ctx, newJob); err != nil {
-			logger.Error(err, "Error on Creating Job...")
-			return 0, err
-		}
-
-		cluster.SetConditionElected(true)
-
+		cluster.UpdateCurrentMaster()
 		if err = r.Status().Update(ctx, cluster); err != nil {
-			logger.Error(err, "Error on Updating Status Elected...")
+			logger.Error(err, "Error on Updating Status Current master....")
 			return 0, err
 		}
 
-		logger.Info("Master Job Created")
+		logger.Info("Master Pod Updated")
 		return 10, nil
 	}
 
-	if !utils.JobHasOneCompletion(*existsJob) {
-		logger.Info("Waiting for job complete")
-		return 5, nil
+	if !cluster.IsReady() {
+		cluster.DeleteInitializedCondition()
+		cluster.SetConditionReady(true)
+
+		if err := r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Cluster status Running...")
+			return 0, err
+		}
 	}
 
-	masterPod.SetLabels(cluster.MasterSelectorLabels())
-
-	if err = r.Update(ctx, masterPod); err != nil {
-		logger.Error(err, "Error on Updating labels to master...")
-		return 0, err
-	}
-
-	cluster.UpdateCurrentMaster()
-
-	if err = r.Status().Update(ctx, cluster); err != nil {
-		logger.Error(err, "Error on Updating Status Current master....")
-		return 0, err
-	}
-
-	logger.Info("Master Pod Updated")
-	return 2, nil
+	logger.Info("Everything ok")
+	return 20, nil
 }
 
 func (r *OpenldapClusterReconciler) getAlivePodIndex(
@@ -179,6 +183,13 @@ func (r *OpenldapClusterReconciler) electMaster(
 ) error {
 	logger := log.FromContext(ctx)
 
+	cluster.DeleteCurrentMaster()
+	cluster.SetConditionElected(false)
+	if err := r.Status().Update(ctx, cluster); err != nil {
+		logger.Error(err, "Error on Updating Cluster Condition Elected....")
+		return err
+	}
+
 	nextIndex, err := r.getAlivePodIndex(ctx, cluster)
 	if err != nil {
 		logger.Error(err, "Error on get pods...")
@@ -186,11 +197,8 @@ func (r *OpenldapClusterReconciler) electMaster(
 	}
 
 	cluster.UpdateDesiredMaster(nextIndex)
-	cluster.DeleteCurrentMaster()
-	cluster.SetConditionElected(false)
-
 	if err := r.Status().Update(ctx, cluster); err != nil {
-		logger.Error(err, "Error on Updating Cluster Condition Elected....")
+		logger.Error(err, "Error on Updating Cluster Desired Master....")
 		return err
 	}
 

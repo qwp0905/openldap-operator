@@ -135,6 +135,8 @@ type OpenldapClusterStatus struct {
 	CurrentMaster string `json:"currentMaster,omitempty"`
 
 	DesiredMaster string `json:"desiredMaster,omitempty"`
+
+	MasterFailure int `json:"masterFailure"`
 }
 
 //+kubebuilder:object:root=true
@@ -445,29 +447,51 @@ func (r *OpenldapCluster) IsElected() bool {
 }
 
 func (r *OpenldapCluster) SetConditionReady(condition bool) {
+	conditions := []metav1.Condition{}
+
 	for _, con := range r.Status.Conditions {
-		if con.Type == ConditionReady {
-			con.LastTransitionTime = metav1.Now()
-			if condition {
-				con.Status = metav1.ConditionTrue
-			} else {
-				con.Status = metav1.ConditionFalse
-			}
+		if con.Type != ConditionReady {
+			conditions = append(conditions, con)
 		}
 	}
+
+	var status metav1.ConditionStatus
+	if condition {
+		status = metav1.ConditionTrue
+	} else {
+		status = metav1.ConditionFalse
+	}
+
+	r.Status.Conditions = append(conditions, metav1.Condition{
+		Type:               ConditionReady,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ConditionReady,
+	})
 }
 
 func (r *OpenldapCluster) SetConditionElected(condition bool) {
+	conditions := []metav1.Condition{}
+
 	for _, con := range r.Status.Conditions {
-		if con.Type == ConditionElected {
-			con.LastTransitionTime = metav1.Now()
-			if condition {
-				con.Status = metav1.ConditionTrue
-			} else {
-				con.Status = metav1.ConditionFalse
-			}
+		if con.Type != ConditionElected {
+			conditions = append(conditions, con)
 		}
 	}
+
+	var status metav1.ConditionStatus
+	if condition {
+		status = metav1.ConditionTrue
+	} else {
+		status = metav1.ConditionFalse
+	}
+
+	r.Status.Conditions = append(conditions, metav1.Condition{
+		Type:               ConditionElected,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ConditionElected,
+	})
 }
 
 func (r *OpenldapCluster) DeleteInitializedCondition() {
@@ -479,6 +503,10 @@ func (r *OpenldapCluster) DeleteInitializedCondition() {
 	}
 
 	r.Status.Conditions = conditions
+}
+
+func (r *OpenldapCluster) GetMasterFailure() int {
+	return r.Status.MasterFailure
 }
 
 func init() {
