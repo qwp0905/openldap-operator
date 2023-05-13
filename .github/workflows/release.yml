@@ -11,7 +11,6 @@ jobs:
     env:
       DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
       DOCKER_PWD: ${{ secrets.DOCKER_PWD }}
-      BUILDER: "multi-arch"
     steps:
       - uses: actions/checkout@v3
 
@@ -20,6 +19,8 @@ jobs:
 
       - name: Build Application
         run: |
+          make generate
+          make manifests
           make docker-buildx \
             IMG=${DOCKER_REGISTRY}:$(helm show chart charts/openldap-operator | grep version | awk -F": " '{print $2}' | xargs echo -n) \
             PLATFORMS=linux/amd64,linux/arm64
