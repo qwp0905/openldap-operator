@@ -110,7 +110,7 @@ func (r *OpenldapClusterReconciler) setReadService(
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
 	logger := log.FromContext(ctx)
-	existsService, err := r.getService(ctx, cluster, cluster.ReadServiceName())
+	existsService, err := r.getService(ctx, cluster, cluster.Name)
 
 	if err != nil {
 		if !errors.IsNotFound(err) {

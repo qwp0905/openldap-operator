@@ -128,9 +128,14 @@ func (r *OpenldapClusterReconciler) election(
 	}
 
 	if !cluster.IsMasterSame() {
-		copyMaster := masterPod.DeepCopy()
-		copyMaster.SetLabels(cluster.MasterSelectorLabels())
-		if err = r.Patch(ctx, copyMaster, client.MergeFrom(masterPod)); err != nil {
+		origin := masterPod.DeepCopy()
+		masterPod.SetLabels(
+			utils.MergeMap(
+				masterPod.GetLabels(),
+				cluster.MasterSelectorLabels(),
+			),
+		)
+		if err = r.Patch(ctx, masterPod, client.MergeFrom(origin)); err != nil {
 			logger.Error(err, "Error on Updating labels to master...")
 			return 0, err
 		}
@@ -156,7 +161,7 @@ func (r *OpenldapClusterReconciler) election(
 	}
 
 	logger.Info("Everything ok")
-	return 20, nil
+	return 10, nil
 }
 
 func (r *OpenldapClusterReconciler) getAlivePodIndex(

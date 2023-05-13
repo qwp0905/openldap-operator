@@ -3,7 +3,9 @@ package v1
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/qwp0905/openldap-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -264,22 +266,31 @@ func (r *OpenldapCluster) GetReplicas() int {
 }
 
 func (r *OpenldapCluster) SelectorLabels() map[string]string {
+	version := "latest"
+
+	if strings.Contains(r.Spec.Image, ":") {
+		version = strings.Split(r.Spec.Image, ":")[1]
+	}
+
 	return map[string]string{
 		"app.kubernetes.io/name":     r.Name,
 		"app.kubernetes.io/instance": "openldap",
+		"app.kubernetes.io/version":  version,
 	}
 }
 
-func (r *OpenldapCluster) MasterSelectorLabels() (labels map[string]string) {
-	labels = r.SelectorLabels()
-	labels["app.kubernetes.io/component"] = "master"
-	return
+func (r *OpenldapCluster) MasterSelectorLabels() map[string]string {
+	return utils.MergeMap(
+		r.SelectorLabels(),
+		map[string]string{"app.kubernetes.io/component": "master"},
+	)
 }
 
-func (r *OpenldapCluster) SlaveSelectorLabels() (labels map[string]string) {
-	labels = r.SelectorLabels()
-	labels["app.kubernetes.io/component"] = "slave"
-	return
+func (r *OpenldapCluster) SlaveSelectorLabels() map[string]string {
+	return utils.MergeMap(
+		r.SelectorLabels(),
+		map[string]string{"app.kubernetes.io/component": "slave"},
+	)
 }
 
 func (r *OpenldapCluster) JobLabels() map[string]string {

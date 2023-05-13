@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	"github.com/qwp0905/openldap-operator/pkg/statefulsets"
@@ -48,6 +49,8 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 	}
 
 	existsStatefulset.Spec.Replicas = updatedStatefulset.Spec.Replicas
+	existsStatefulset.Spec.Template.Spec = updatedStatefulset.Spec.Template.Spec
+	existsStatefulset.Spec.VolumeClaimTemplates = updatedStatefulset.Spec.VolumeClaimTemplates
 	existsStatefulset.SetLabels(updatedStatefulset.GetLabels())
 	existsStatefulset.SetAnnotations(updatedStatefulset.GetAnnotations())
 
@@ -87,5 +90,11 @@ func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) boo
 		return false
 	}
 
-	return *exists.Spec.Replicas == *new.Spec.Replicas
+	exCon := statefulsets.GetContainer(exists, exists.Name)
+	neCon := statefulsets.GetContainer(new, new.Name)
+
+	return *exists.Spec.Replicas == *new.Spec.Replicas &&
+		reflect.DeepEqual(exCon.Resources, neCon.Resources) &&
+		utils.CompareEnv(*exCon, *neCon) &&
+		reflect.DeepEqual(exists.Spec.VolumeClaimTemplates, new.Spec.VolumeClaimTemplates)
 }

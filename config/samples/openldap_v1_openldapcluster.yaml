@@ -12,7 +12,7 @@ metadata:
 spec:
   image: qwp1216/openldap:2.6.4-repl
   imagePullPolicy: IfNotPresent
-  replicas: 1
+  replicas: 3
   resources:
     limits:
       cpu: 250m
@@ -47,6 +47,6 @@ spec:
       - name: BITNAMI_DEBUG
         value: "true"
   monitor:
-    enabled: false
+    enabled: true
   ports:
     ldap: 1389

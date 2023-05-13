@@ -83,3 +83,13 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 		},
 	}
 }
+
+func GetContainer(st *appsv1.StatefulSet, name string) *corev1.Container {
+	for _, c := range st.Spec.Template.Spec.Containers {
+		if c.Name == name {
+			return &c
+		}
+	}
+
+	return nil
+}

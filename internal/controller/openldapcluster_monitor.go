@@ -16,13 +16,14 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
-	if !cluster.MonitorEnabled() {
-		return false, nil
+	logger := log.FromContext(ctx)
+
+	if err := monitoringv1.AddToScheme(r.Scheme); err != nil {
+		logger.Error(err, "Error on Registering Monitoring Scheme...")
+		return false, err
 	}
 
-	logger := log.FromContext(ctx)
 	existsServiceMonitor, err := r.getServiceMonitor(ctx, cluster)
-
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			logger.Error(err, "Error on Get ServiceMonitor...")
