@@ -22,7 +22,7 @@
     "*.yaml": "yaml",
     "*.yml": "yaml"
   },
-  "yaml.format.enable": true,
+  "yaml.format.enable": false,
   "yaml.schemas": {
     "values.yaml": "none",
     "kubernetes": "charts/*/templates/*.yaml"
