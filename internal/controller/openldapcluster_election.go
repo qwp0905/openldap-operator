@@ -90,6 +90,21 @@ func (r *OpenldapClusterReconciler) election(
 		return 2, nil
 	}
 
+	if utils.IsPodRestart(*masterPod) {
+		logger.Info("Election Triggered because of Pod Restarted....")
+		if err = r.electMaster(ctx, cluster); err != nil {
+			return 0, err
+		}
+
+		if err = r.Delete(ctx, masterPod); err != nil {
+			logger.Error(err, "Error on deleting restarted pod...")
+			return 0, err
+		}
+
+		logger.Info("Deleting Exists pod...")
+		return 2, nil
+	}
+
 	if !cluster.IsElected() {
 		existsJob, err := r.getJob(ctx, cluster)
 		if err != nil {
@@ -174,7 +189,7 @@ func (r *OpenldapClusterReconciler) getAlivePodIndex(
 			continue
 		}
 
-		if utils.IsPodReady(*pod) {
+		if utils.IsPodAlive(*pod) && utils.IsPodReady(*pod) {
 			return i, nil
 		}
 	}

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
@@ -44,7 +45,8 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 
 	updatedStatefulset := statefulsets.CreateStatefulset(cluster)
 
-	if compareStatefulset(existsStatefulset, updatedStatefulset) {
+	reason, result := compareStatefulset(existsStatefulset, updatedStatefulset)
+	if result {
 		return false, nil
 	}
 
@@ -59,7 +61,7 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 		return false, err
 	}
 
-	logger.Info("Statefulset Updated")
+	logger.Info(fmt.Sprintf("Statefulset Updated %s changed", reason))
 	return true, nil
 }
 
@@ -81,20 +83,44 @@ func (r *OpenldapClusterReconciler) getStatefulset(
 	return statefulset, nil
 }
 
-func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) bool {
+func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) (string, bool) {
 	if !utils.CompareLabels(exists.Labels, new.Labels) {
-		return false
+		return "labels", false
 	}
 
 	if !utils.CompareLabels(exists.Annotations, new.Annotations) {
-		return false
+		return "annotations", false
 	}
 
 	exCon := statefulsets.GetContainer(exists, exists.Name)
 	neCon := statefulsets.GetContainer(new, new.Name)
 
-	return *exists.Spec.Replicas == *new.Spec.Replicas &&
-		reflect.DeepEqual(exCon.Resources, neCon.Resources) &&
-		utils.CompareEnv(*exCon, *neCon) &&
-		reflect.DeepEqual(exists.Spec.VolumeClaimTemplates, new.Spec.VolumeClaimTemplates)
+	if *exists.Spec.Replicas != *new.Spec.Replicas {
+		return "replicas", false
+	}
+
+	if !utils.CompareEnv(*exCon, *neCon) {
+		return "env", false
+	}
+
+	if !reflect.DeepEqual(exCon.Resources, neCon.Resources) {
+		return "resources", false
+	}
+
+	if exCon.Image != neCon.Image {
+		return "image", false
+	}
+
+	if exCon.ImagePullPolicy != neCon.ImagePullPolicy {
+		return "imagePullPolicy", false
+	}
+
+	if !utils.ComparePVC(
+		exists.Spec.VolumeClaimTemplates[0],
+		new.Spec.VolumeClaimTemplates[0],
+	) {
+		return "pvc", false
+	}
+
+	return "", true
 }

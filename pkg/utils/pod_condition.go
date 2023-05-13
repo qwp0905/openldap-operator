@@ -13,17 +13,6 @@ const (
 // PodStatus represent the possible status of pods
 type PodStatus string
 
-const (
-	// PodHealthy means that a Pod is active and ready
-	PodHealthy = "healthy"
-
-	// PodReplicating means that a Pod is still not ready but still active
-	PodReplicating = "replicating"
-
-	// PodFailed means that a Pod will not be scheduled again (deleted or evicted)
-	PodFailed = "failed"
-)
-
 // IsPodReady check if a Pod is ready or not
 func IsPodReady(pod corev1.Pod) bool {
 	for _, c := range pod.Status.Conditions {
@@ -101,20 +90,12 @@ func CountReadyPods(podList []corev1.Pod) int {
 	return readyPods
 }
 
-// ListStatusPods return a list of active Pods
-func ListStatusPods(podList []corev1.Pod) map[PodStatus][]string {
-	podsNames := make(map[PodStatus][]string)
-
-	for _, pod := range podList {
-		switch {
-		case IsPodReady(pod):
-			podsNames[PodHealthy] = append(podsNames[PodHealthy], pod.Name)
-		case IsPodActive(pod):
-			podsNames[PodReplicating] = append(podsNames[PodReplicating], pod.Name)
-		default:
-			podsNames[PodFailed] = append(podsNames[PodFailed], pod.Name)
+func IsPodRestart(pod corev1.Pod) bool {
+	for _, c := range pod.Status.ContainerStatuses {
+		if c.RestartCount != 0 {
+			return true
 		}
 	}
 
-	return podsNames
+	return false
 }
