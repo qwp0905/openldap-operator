@@ -18,23 +18,11 @@ jobs:
       - name: Docker Login
         run: docker login -u qwp1216 -p ${DOCKER_PWD}
 
-      - name: Create Builder
-        run: |
-          #!/bin/bash
-          if [ -z "$(docker buildx ls | grep "$BUILDER")" ]; then
-            docker buildx create --name $BUILDER --use
-          else
-            docker buildx use $BUILDER
-          fi
-
       - name: Build Application
         run: |
-          dt="$(date "+%Y%m%d%H%M%S")"
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            -f Dockerfile \
-            -t ${DOCKER_REGISTRY}:${dt}-${GITHUB_SHA} \
-            --push .
+          make docker-buildx \
+            IMG=${DOCKER_REGISTRY}:$(helm show chart charts/openldap-operator | grep version | awk -F": " '{print $2}' | xargs echo -n) \
+            PLATFORMS=linux/amd64,linux/arm64
 
   release:
     # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
@@ -43,7 +31,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkou
         uses: actions/checkout@v3.5.2
         with:
           fetch-depth: 0
@@ -58,5 +46,6 @@ jobs:
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.5.0
-        env:
+        with:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        
