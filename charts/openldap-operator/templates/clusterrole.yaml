@@ -166,4 +166,15 @@ rules:
       - create
       - get
       - update
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - watch
 {{- end }}
