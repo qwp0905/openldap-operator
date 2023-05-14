@@ -1639,10 +1639,6 @@ spec:
                 type: string
               desiredMaster:
                 type: string
-              masterFailure:
-                type: integer
-            required:
-            - masterFailure
             type: object
         type: object
     served: true

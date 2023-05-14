@@ -18,14 +18,14 @@ webhooks:
   failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
   name: vopenldapcluster.kb.io
   rules:
-  - apiGroups:
-    - openldap.kwonjin.click
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - openldapclusters
+    - apiGroups:
+        - openldap.kwonjin.click
+      apiVersions:
+        - v1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - openldapclusters
   sideEffects: None
 {{- end }}
