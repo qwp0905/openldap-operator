@@ -3,7 +3,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "openldap-operator.fullname" . }}
-  labels: {{ - include "openldap-operator.labels" . | nindent 4 }}
+  labels: 
+    {{- include "openldap-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - openldap.kwonjin.click
