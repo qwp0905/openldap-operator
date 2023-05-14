@@ -1,0 +1,54 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-openldap-kwonjin-click-v1-openldapcluster
+  failurePolicy: Fail
+  name: mopenldapcluster.kb.io
+  rules:
+  - apiGroups:
+    - openldap.kwonjin.click
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - openldapclusters
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-openldap-kwonjin-click-v1-openldapcluster
+  failurePolicy: Fail
+  name: vopenldapcluster.kb.io
+  rules:
+  - apiGroups:
+    - openldap.kwonjin.click
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - openldapclusters
+  sideEffects: None
