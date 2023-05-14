@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "openldap-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "openldap-operator.labels" . | nindent 4 }}
 spec:
@@ -40,12 +41,14 @@ spec:
             - --leader-elect
             - --metrics-bind-address=127.0.0.1:8080
             - --health-probe-bind-address=:8081
+            - --webhook-port={{ .Values.webhook.port }}
+            - --subject={{ include "openldap-operator.fullname" . }}.{{ .Release.Namespace }}.svc
           ports:
             - name: metrics
               containerPort: 8080
               protocol: TCP
             - name: webhook
-              containerPort: 9443
+              containerPort: {{ .Values.webhook.port }}
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -64,13 +67,9 @@ spec:
           volumeMounts:
             - mountPath: /tmp/k8s-webhook-server/serving-certs
               name: cert
-              readOnly: true
       volumes:
         - name: cert
-          secret:
-            defaultMode: 420
-            secretName: openldap-webhook-cert
-            optional: true
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

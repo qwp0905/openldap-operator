@@ -74,7 +74,7 @@ spec:
         imagePullPolicy: Always
         name: manager
         securityContext:
-          allowPrivilegeEscalation: false
+          allowPrivilegeEscalation: true
           capabilities:
             drop:
               - "ALL"

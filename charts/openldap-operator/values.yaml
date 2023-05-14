@@ -18,6 +18,7 @@ crds:
   install: true
 
 webhook:
+  port: 9443
   mutating:
     create: true
     failurePolicy: Fail
@@ -80,4 +81,4 @@ tolerations: []
 affinity: {}
 
 serviceMonitor:
-  enabled: true
+  enabled: false

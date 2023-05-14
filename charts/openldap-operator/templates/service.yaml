@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "openldap-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "openldap-operator.labels" . | nindent 4 }}
 spec:

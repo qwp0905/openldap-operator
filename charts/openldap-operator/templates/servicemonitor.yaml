@@ -4,6 +4,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "openldap-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "openldap-operator.labels" . | nindent 4 }}
 spec:
