@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	"github.com/qwp0905/openldap-operator/internal/controller"
 	//+kubebuilder:scaffold:imports
@@ -96,6 +97,10 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OpenldapCluster")
+		os.Exit(1)
+	}
+	if err = (&openldapv1.OpenldapCluster{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "OpenldapCluster")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

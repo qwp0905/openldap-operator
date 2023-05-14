@@ -137,8 +137,6 @@ type OpenldapClusterStatus struct {
 	CurrentMaster string `json:"currentMaster,omitempty"`
 
 	DesiredMaster string `json:"desiredMaster,omitempty"`
-
-	MasterFailure int `json:"masterFailure"`
 }
 
 //+kubebuilder:object:root=true
@@ -160,79 +158,6 @@ type OpenldapClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []OpenldapCluster `json:"items"`
-}
-
-const (
-	defaultTlsEnabled     = false
-	defaultRoot           = "dc=example,dc=com"
-	defaultLogLevel       = "info"
-	defaultMonitorEnabled = false
-	defaultAdmin          = "admin"
-	defaultConfig         = "config"
-)
-
-func (r *OpenldapCluster) SetDefault() {
-	if r.Spec.OpenldapConfig == nil {
-		r.Spec.OpenldapConfig = &OpenldapConfig{
-			Root:           defaultRoot,
-			AdminUsername:  defaultAdmin,
-			ConfigUsername: defaultConfig,
-		}
-	}
-
-	if r.Spec.OpenldapConfig.Tls == nil {
-		r.Spec.OpenldapConfig.Tls = &TlsConfig{
-			Enabled: defaultTlsEnabled,
-		}
-	} else if r.Spec.OpenldapConfig.Tls.Enabled {
-		if r.Spec.OpenldapConfig.Tls.CaFile == "" {
-			r.Spec.OpenldapConfig.Tls.CaFile = "ca.crt"
-		}
-
-		if r.Spec.OpenldapConfig.Tls.KeyFile == "" {
-			r.Spec.OpenldapConfig.Tls.KeyFile = "cert.key"
-		}
-
-		if r.Spec.OpenldapConfig.Tls.CertFile == "" {
-			r.Spec.OpenldapConfig.Tls.CertFile = "cert.crt"
-		}
-	}
-
-	if r.Spec.OpenldapConfig.Root == "" {
-		r.Spec.OpenldapConfig.Root = defaultRoot
-	}
-
-	if r.Spec.Monitor == nil {
-		r.Spec.Monitor = &MonitorConfig{Enabled: defaultMonitorEnabled}
-	}
-
-	if r.Spec.Ports == nil {
-		r.Spec.Ports = &PortConfig{
-			Ldap:  1389,
-			Ldaps: 1636,
-		}
-	}
-
-	if r.Spec.Affinity == nil {
-		r.Spec.Affinity = &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					{
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								{
-									Key:      "app.kubernetes.io/name",
-									Operator: "In",
-									Values:   []string{r.Name},
-								},
-							},
-						},
-						TopologyKey: "kubernetes.io/hostname",
-					},
-				},
-			},
-		}
-	}
 }
 
 func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
@@ -514,10 +439,6 @@ func (r *OpenldapCluster) DeleteInitializedCondition() {
 	}
 
 	r.Status.Conditions = conditions
-}
-
-func (r *OpenldapCluster) GetMasterFailure() int {
-	return r.Status.MasterFailure
 }
 
 func init() {
