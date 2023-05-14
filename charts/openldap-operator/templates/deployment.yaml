@@ -40,13 +40,12 @@ spec:
             - --leader-elect
             - --metrics-bind-address=127.0.0.1:8080
             - --health-probe-bind-address=:8081
-            - --webhook-port={{ .Values.webhook.port }}
           ports:
             - name: metrics
               containerPort: 8080
               protocol: TCP
             - name: webhook
-              containerPort: {{ .Values.webhook.port }}
+              containerPort: 9443
               protocol: TCP
           livenessProbe:
             httpGet:
