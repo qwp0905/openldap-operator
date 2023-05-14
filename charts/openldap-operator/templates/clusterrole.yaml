@@ -113,7 +113,7 @@ rules:
   - apiGroups:
       - apps
     resources:
-      - statefulset
+      - statefulsets
     verbs:
       - create
       - delete

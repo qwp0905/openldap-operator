@@ -22,7 +22,7 @@ jobs:
           make generate
           make manifests
           make docker-buildx \
-            IMG=${DOCKER_REGISTRY}:$(helm show chart charts/openldap-operator | grep version | awk -F": " '{print $2}' | xargs echo -n) \
+            IMG=${DOCKER_REGISTRY}:$(helm show chart charts/openldap-operator | grep appVersion | awk -F": " '{print $2}' | xargs echo -n) \
             PLATFORMS=linux/amd64,linux/arm64
 
   release:
