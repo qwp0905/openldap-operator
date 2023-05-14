@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  openldap-operator:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2023-05-14T05:19:00.241142258Z"
+    description: Openldap Operator chart for Kubernetes
+    digest: d2791afc575fc6c63c3df7a20038fef86595230d810b00c15a135400d9070f2f
+    name: openldap-operator
+    type: application
+    urls:
+    - https://github.com/qwp0905/openldap-operator/releases/download/openldap-operator-0.0.1/openldap-operator-0.0.1.tgz
+    version: 0.0.1
+generated: "2023-05-14T05:19:00.241148158Z"
