@@ -10,7 +10,7 @@ metadata:
   name: openldap
   namespace: tools
 spec:
-  image: qwp1216/openldap:2.6.4-repl
+  image: qwp1216/openldap:2.6.4
   imagePullPolicy: IfNotPresent
   replicas: 3
   resources:

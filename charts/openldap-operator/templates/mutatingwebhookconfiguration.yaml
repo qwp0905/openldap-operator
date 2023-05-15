@@ -16,6 +16,8 @@ webhooks:
       namespace: {{ .Release.Namespace }}
       path: /mutate-openldap-kwonjin-click-v1-openldapcluster
       port: {{ .Values.service.port }}
+    caBundle: |
+      {{- include "openldap-operator.cabundle" . | nindent 6 }}
   failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
   name: vopenldapcluster.kb.io
   rules:

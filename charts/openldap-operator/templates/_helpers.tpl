@@ -60,3 +60,14 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create Ca to use in webhook
+*/}}
+{{- define "openldap-operator.cabundle" -}}
+{{- $altList := list (printf "%s-admission.%s.svc" (include "openldap-operator.fullname" .) .Release.Namespace) (printf "%s-admission.%s" (include "openldap-operator.fullname" .) .Release.Namespace) (include "openldap-operator.fullname" .) }}
+{{- $ca := genCA (printf "%s-admission.%s.svc" (include "openldap-operator.fullname" .) .Release.Namespace) 365 }}
+{{- $cert := genSignedCert (include "openldap-operator.fullname" .) nil $altList 365 $ca }}
+tls.crt: {{ $cert.Cert }}
+tls.key: {{ $cert.Key }}
+{{- end }}
