@@ -15,10 +15,9 @@ spec:
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
+          readOnly: true
       volumes:
       - name: cert
-        emptyDir: {}
-        # secret:
-        #   defaultMode: 420
-        #   secretName: webhook-server-cert
-        #   optional: true
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert

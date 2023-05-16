@@ -42,7 +42,6 @@ spec:
             - --metrics-bind-address=127.0.0.1:8080
             - --health-probe-bind-address=:8081
             - --webhook-port={{ .Values.webhook.port }}
-            - --subject={{ include "openldap-operator.fullname" . }}.{{ .Release.Namespace }}.svc
           ports:
             - name: metrics
               containerPort: 8080
@@ -67,9 +66,12 @@ spec:
           volumeMounts:
             - mountPath: /tmp/k8s-webhook-server/serving-certs
               name: cert
+              readOnly: true
       volumes:
         - name: cert
-          emptyDir: {}
+          secret:
+            defaultMode: 420
+            secretName: {{ include "openldap-operator.fullname" . }}-cert
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
