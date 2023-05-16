@@ -178,6 +178,10 @@ func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
 	}
 }
 
+func (r *OpenldapCluster) InitContainerName() string {
+	return fmt.Sprintf("%s-init", r.Name)
+}
+
 func (r *OpenldapCluster) PodName(index int) string {
 	return fmt.Sprintf(
 		"%s-%s",
