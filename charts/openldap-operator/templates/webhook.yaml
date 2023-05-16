@@ -1,5 +1,5 @@
 {{- if or .Values.webhook.mutating.create .Values.webhook.validating.create }}
-{{- $altList := list (printf "%s-admission.%s.svc" (include "openldap-operator.fullname" .) .Release.Namespace) (printf "%s-admission.%s" (include "openldap-operator.fullname" .) .Release.Namespace) (include "openldap-operator.fullname" .) }}
+{{- $altList := list (printf "%s.%s.svc" (include "openldap-operator.fullname" .) .Release.Namespace) (printf "%s-admission.%s" (include "openldap-operator.fullname" .) .Release.Namespace) (include "openldap-operator.fullname" .) }}
 {{- $ca := genCA (printf "%s-admission.%s.svc" (include "openldap-operator.fullname" .) .Release.Namespace) 365 }}
 {{- $cert := genSignedCert (include "openldap-operator.fullname" .) nil $altList 365 $ca }}
 ---
@@ -32,8 +32,7 @@ webhooks:
       namespace: {{ .Release.Namespace }}
       path: /mutate-openldap-kwonjin-click-v1-openldapcluster
       port: {{ .Values.service.port }}
-    caBundle: |
-      {{- $ca.Cert | nindent 6 }}
+    caBundle: {{ $ca.Cert | b64enc | quote }}
   failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
   name: vopenldapcluster.kb.io
   rules:
@@ -66,8 +65,7 @@ webhooks:
       namespace: {{ .Release.Namespace }}
       path: /validate-openldap-kwonjin-click-v1-openldapcluster
       port: {{ .Values.service.port }}
-    caBundle: |
-      {{- $ca.Cert | nindent 6 }}
+    caBundle: {{ $ca.Cert | b64enc | quote }}
   failurePolicy: {{ .Values.webhook.mutating.failurePolicy }}
   name: vopenldapcluster.kb.io
   rules:
