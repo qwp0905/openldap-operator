@@ -30,7 +30,7 @@ func defaultConfigMapData(cluster *openldapv1.OpenldapCluster) (data map[string]
 		"LDAP_ROOT":                  cluster.Spec.OpenldapConfig.Root,
 		"LDAP_CONFIG_ADMIN_ENABLED":  "yes",
 		"LDAP_ADMIN_USERNAME":        cluster.Spec.OpenldapConfig.AdminUsername,
-		"LDAP_CONFIG_ADMIN_PASSWORD": cluster.Spec.OpenldapConfig.ConfigUsername,
+		"LDAP_CONFIG_ADMIN_USERNAME": cluster.Spec.OpenldapConfig.ConfigUsername,
 		"MASTER_HOST": fmt.Sprintf(
 			"ldap://%s.%s.svc.cluster.local:%s",
 			cluster.WriteServiceName(),

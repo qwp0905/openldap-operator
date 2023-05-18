@@ -12,11 +12,27 @@ import (
 func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet {
 	volumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
 	volumes := []corev1.Volume{}
+	initVolumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
+	rootUser := int64(0)
 
 	if cluster.Spec.OpenldapConfig.SeedData != nil {
-		volumeMounts = append(volumeMounts, pods.SeedVolumeMount(cluster))
+		initVolumeMounts = append(volumeMounts, pods.SeedVolumeMount(cluster))
 		volumes = append(volumes, pods.SeedVolumes(cluster))
 	}
+
+	initContainers := []corev1.Container{{
+		Name:            cluster.InitContainerName(),
+		Image:           cluster.Spec.Image,
+		ImagePullPolicy: cluster.Spec.ImagePullPolicy,
+		Command:         []string{"/opt/bitnami/scripts/openldap/setup.sh"},
+		Resources:       *cluster.Spec.Resources,
+		Env:             pods.DefaultEnvs(cluster),
+		EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
+		VolumeMounts:    initVolumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: &rootUser,
+		},
+	}}
 
 	containers := []corev1.Container{
 		{
@@ -67,8 +83,9 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 					Labels: cluster.SlaveSelectorLabels(),
 				},
 				Spec: corev1.PodSpec{
-					Containers: containers,
-					Volumes:    volumes,
+					InitContainers: initContainers,
+					Containers:     containers,
+					Volumes:        volumes,
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{

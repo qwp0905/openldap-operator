@@ -106,14 +106,6 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 				SecretKeyRef: cluster.Spec.OpenldapConfig.ConfigPassword,
 			},
 		},
-		{
-			Name: "POD_NAME",
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
-				},
-			},
-		},
 	}
 
 	if cluster.Spec.OpenldapConfig.Env != nil && len(cluster.Spec.OpenldapConfig.Env) > 0 {
@@ -148,7 +140,7 @@ func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort 
 func DataVolumeMounts(cluster *openldapv1.OpenldapCluster) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      "data",
-		MountPath: "/bitnami/openldap/",
+		MountPath: "/bitnami/openldap",
 	}
 }
 
