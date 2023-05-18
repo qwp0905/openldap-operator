@@ -13,6 +13,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 	volumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
 	volumes := []corev1.Volume{}
 	initVolumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
+	rootUser := int64(0)
 
 	if cluster.Spec.OpenldapConfig.SeedData != nil {
 		initVolumeMounts = append(volumeMounts, pods.SeedVolumeMount(cluster))
@@ -29,9 +30,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 		EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
 		VolumeMounts:    initVolumeMounts,
 		SecurityContext: &corev1.SecurityContext{
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"ALL"},
-			},
+			RunAsUser: &rootUser,
 		},
 	}}
 
