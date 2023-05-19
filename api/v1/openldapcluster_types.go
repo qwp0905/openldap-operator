@@ -25,6 +25,9 @@ type OpenldapClusterSpec struct {
 	//+optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
+	//+optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	//+kubebuilder:default:=1
 	//+kubebuilder:validation:Minimum:=1
 	Replicas int32 `json:"replicas,omitempty"`
@@ -48,7 +51,13 @@ type OpenldapClusterSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
 	//+optional
-	NodeSelector *corev1.NodeSelector `json:"nodeSelector,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	//+optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	//+optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 type PortConfig struct {
@@ -128,6 +137,9 @@ type MonitorConfig struct {
 
 	//+kubebuilder:default:="30s"
 	Interval string `json:"interval,omitempty"`
+
+	//+kubebuilder:default:="10s"
+	ScrapeTimeout string `json:"scrapeTimeout,omitempty"`
 }
 
 // OpenldapClusterStatus defines the observed state of OpenldapCluster
@@ -195,17 +207,23 @@ func (r *OpenldapCluster) GetReplicas() int {
 }
 
 func (r *OpenldapCluster) SelectorLabels() map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name":     r.Name,
+		"app.kubernetes.io/instance": "openldap",
+	}
+}
+
+func (r *OpenldapCluster) DefaultLabels() map[string]string {
 	version := "latest"
 
 	if strings.Contains(r.Spec.Image, ":") {
 		version = strings.Split(r.Spec.Image, ":")[1]
 	}
 
-	return map[string]string{
-		"app.kubernetes.io/name":     r.Name,
-		"app.kubernetes.io/instance": "openldap",
-		"app.kubernetes.io/version":  version,
-	}
+	return utils.MergeMap(
+		r.SelectorLabels(),
+		map[string]string{"app.kubernetes.io/version": version},
+	)
 }
 
 func (r *OpenldapCluster) MasterSelectorLabels() map[string]string {

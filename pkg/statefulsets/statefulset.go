@@ -14,6 +14,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 	volumes := []corev1.Volume{}
 	initVolumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
 	rootUser := int64(0)
+	gracefulPeriod := int64(10)
 
 	if cluster.Spec.OpenldapConfig.SeedData != nil {
 		initVolumeMounts = append(volumeMounts, pods.SeedVolumeMount(cluster))
@@ -53,11 +54,29 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 		containers = append(containers, pods.CreateExporterContainer(cluster))
 	}
 
+	podSpec := &corev1.PodSpec{
+		InitContainers:                initContainers,
+		Containers:                    containers,
+		Volumes:                       volumes,
+		Affinity:                      cluster.Spec.Affinity,
+		NodeSelector:                  cluster.Spec.NodeSelector,
+		TerminationGracePeriodSeconds: &gracefulPeriod,
+		ImagePullSecrets:              cluster.Spec.ImagePullSecrets,
+	}
+
+	if cluster.Spec.Tolerations != nil {
+		podSpec.Tolerations = cluster.Spec.Tolerations
+	}
+
+	if cluster.Spec.PriorityClassName != "" {
+		podSpec.PriorityClassName = cluster.Spec.PriorityClassName
+	}
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name,
 			Namespace: cluster.Namespace,
-			Labels:    cluster.SelectorLabels(),
+			Labels:    cluster.DefaultLabels(),
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -82,11 +101,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: cluster.SlaveSelectorLabels(),
 				},
-				Spec: corev1.PodSpec{
-					InitContainers: initContainers,
-					Containers:     containers,
-					Volumes:        volumes,
-				},
+				Spec: *podSpec,
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
 				{

@@ -19,7 +19,7 @@ metadata:
             "namespace": "tools"
           },
           "spec": {
-            "image": "qwp1216/openldap:2.6.4-repl",
+            "image": "qwp1216/openldap:2.6.4",
             "imagePullPolicy": "IfNotPresent",
             "monitor": {
               "enabled": true
@@ -82,7 +82,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2023-05-14T10:24:16Z"
+    createdAt: "2023-05-18T14:13:02Z"
     operators.operatorframework.io/builder: operator-sdk-v1.28.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4-alpha
   name: openldap-operator.v0.0.1
@@ -198,6 +198,7 @@ spec:
                 volumeMounts:
                 - mountPath: /tmp/k8s-webhook-server/serving-certs
                   name: cert
+                  readOnly: true
               - args:
                 - --secure-listen-address=0.0.0.0:8443
                 - --upstream=http://127.0.0.1:8080/
@@ -226,8 +227,10 @@ spec:
               serviceAccountName: openldap-operator-controller-manager
               terminationGracePeriodSeconds: 10
               volumes:
-              - emptyDir: {}
-                name: cert
+              - name: cert
+                secret:
+                  defaultMode: 420
+                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:

@@ -150,21 +150,26 @@ func (r *OpenldapCluster) SetDefault() {
 		}
 	}
 
+	if r.Spec.NodeSelector == nil {
+		r.Spec.NodeSelector = map[string]string{}
+	}
+
+	if r.Spec.ImagePullSecrets == nil {
+		r.Spec.ImagePullSecrets = []corev1.LocalObjectReference{}
+	}
+
 	if r.Spec.Affinity == nil {
 		r.Spec.Affinity = &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 					{
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								{
-									Key:      "app.kubernetes.io/name",
-									Operator: "In",
-									Values:   []string{r.Name},
-								},
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: r.SelectorLabels(),
 							},
+							TopologyKey: "kubernetes.io/hostname",
 						},
-						TopologyKey: "kubernetes.io/hostname",
 					},
 				},
 			},

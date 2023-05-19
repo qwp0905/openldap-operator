@@ -108,11 +108,11 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 		},
 	}
 
-	if cluster.Spec.OpenldapConfig.Env != nil && len(cluster.Spec.OpenldapConfig.Env) > 0 {
-		envVars = append(envVars, cluster.Spec.OpenldapConfig.Env...)
+	if cluster.Spec.OpenldapConfig.Env == nil || len(cluster.Spec.OpenldapConfig.Env) == 0 {
+		return envVars
 	}
 
-	return envVars
+	return append(envVars, cluster.Spec.OpenldapConfig.Env...)
 }
 
 func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort {
@@ -124,17 +124,18 @@ func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort 
 		},
 	}
 
-	if cluster.TlsEnabled() {
-		ports = append(
-			ports,
-			corev1.ContainerPort{
-				Name:          "ldaps",
-				Protocol:      "TCP",
-				ContainerPort: cluster.Spec.Ports.Ldaps,
-			},
-		)
+	if !cluster.TlsEnabled() {
+		return ports
 	}
-	return ports
+
+	return append(
+		ports,
+		corev1.ContainerPort{
+			Name:          "ldaps",
+			Protocol:      "TCP",
+			ContainerPort: cluster.Spec.Ports.Ldaps,
+		},
+	)
 }
 
 func DataVolumeMounts(cluster *openldapv1.OpenldapCluster) corev1.VolumeMount {
