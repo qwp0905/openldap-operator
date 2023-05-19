@@ -27,7 +27,7 @@ func CreateReadService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name,
 			Namespace: cluster.Namespace,
-			Labels:    cluster.SelectorLabels(),
+			Labels:    cluster.DefaultLabels(),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
