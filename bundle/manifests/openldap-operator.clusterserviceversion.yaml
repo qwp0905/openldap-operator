@@ -19,8 +19,6 @@ metadata:
             "namespace": "tools"
           },
           "spec": {
-            "image": "qwp1216/openldap:2.6.4",
-            "imagePullPolicy": "IfNotPresent",
             "monitor": {
               "enabled": true
             },
@@ -35,12 +33,6 @@ metadata:
                 "name": "openldap"
               },
               "configUsername": "config",
-              "env": [
-                {
-                  "name": "BITNAMI_DEBUG",
-                  "value": "true"
-                }
-              ],
               "root": "dc=cluster,dc=local",
               "seedData": {
                 "configMap": {
@@ -51,20 +43,7 @@ metadata:
                 "enabled": false
               }
             },
-            "ports": {
-              "ldap": 1389
-            },
             "replicas": 3,
-            "resources": {
-              "limits": {
-                "cpu": "250m",
-                "memory": "256Mi"
-              },
-              "requests": {
-                "cpu": "250m",
-                "memory": "256Mi"
-              }
-            },
             "storage": {
               "volumeClaimTemplate": {
                 "accessModes": [
@@ -77,12 +56,35 @@ metadata:
                 },
                 "storageClassName": "standard"
               }
+            },
+            "template": {
+              "env": [
+                {
+                  "name": "BITNAMI_DEBUG",
+                  "value": "true"
+                }
+              ],
+              "image": "qwp1216/openldap:2.6.4",
+              "imagePullPolicy": "IfNotPresent",
+              "ports": {
+                "ldap": 1389
+              },
+              "resources": {
+                "limits": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                }
+              }
             }
           }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2023-05-18T14:13:02Z"
+    createdAt: "2023-05-20T12:04:45Z"
     operators.operatorframework.io/builder: operator-sdk-v1.28.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4-alpha
   name: openldap-operator.v0.0.1

@@ -19,11 +19,8 @@ const (
 
 // OpenldapClusterSpec defines the desired state of OpenldapCluster
 type OpenldapClusterSpec struct {
-	// Openldap image based on qwp1216/openldap
-	Image string `json:"image,omitempty"`
-
-	//+optional
-	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	//+kubebuilder:validation:Required
+	Template ClusterPodTemplate `json:"template,omitempty"`
 
 	//+optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
@@ -32,20 +29,28 @@ type OpenldapClusterSpec struct {
 	//+kubebuilder:validation:Minimum:=1
 	Replicas int32 `json:"replicas,omitempty"`
 
-	//+optional
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	//+optional
+	//+kubebuilder:validation:Required
 	Storage *StorageConfig `json:"storage,omitempty"`
 
 	//+optional
 	OpenldapConfig *OpenldapConfig `json:"openldapConfig,omitempty"`
 
 	//+optional
-	Ports *PortConfig `json:"ports,omitempty"`
+	Monitor *MonitorConfig `json:"monitor,omitempty"`
+}
+
+type ClusterPodTemplate struct {
+	// Openldap image based on qwp1216/openldap
+	Image string `json:"image,omitempty"`
 
 	//+optional
-	Monitor *MonitorConfig `json:"monitor,omitempty"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	//+optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	//+optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	//+optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
@@ -58,6 +63,9 @@ type OpenldapClusterSpec struct {
 
 	//+optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	//+optional
+	Ports *PortConfig `json:"ports,omitempty"`
 }
 
 type PortConfig struct {
@@ -98,9 +106,6 @@ type OpenldapConfig struct {
 
 	//+optional
 	SeedData *SecretOrConfigMapVolumeSource `json:"seedData,omitempty"`
-
-	//+optional
-	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 type SecretOrConfigMapVolumeSource struct {
@@ -178,7 +183,7 @@ func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					Type:   intstr.Int,
-					IntVal: r.Spec.Ports.Ldap,
+					IntVal: r.GetTemplate().Ports.Ldap,
 				},
 			},
 		},
@@ -202,6 +207,10 @@ func (r *OpenldapCluster) PodName(index int) string {
 	)
 }
 
+func (r *OpenldapCluster) GetTemplate() ClusterPodTemplate {
+	return r.Spec.Template
+}
+
 func (r *OpenldapCluster) GetReplicas() int {
 	return int(r.Spec.Replicas)
 }
@@ -216,8 +225,8 @@ func (r *OpenldapCluster) SelectorLabels() map[string]string {
 func (r *OpenldapCluster) DefaultLabels() map[string]string {
 	version := "latest"
 
-	if strings.Contains(r.Spec.Image, ":") {
-		version = strings.Split(r.Spec.Image, ":")[1]
+	if strings.Contains(r.GetTemplate().Image, ":") {
+		version = strings.Split(r.GetTemplate().Image, ":")[1]
 	}
 
 	return utils.MergeMap(
@@ -300,11 +309,11 @@ func (r *OpenldapCluster) MetricsPath() string {
 }
 
 func (r *OpenldapCluster) LdapPort() int32 {
-	return r.Spec.Ports.Ldap
+	return r.GetTemplate().Ports.Ldap
 }
 
 func (r *OpenldapCluster) LdapsPort() int32 {
-	return r.Spec.Ports.Ldaps
+	return r.GetTemplate().Ports.Ldaps
 }
 
 func (r *OpenldapCluster) SeedDataPath() string {

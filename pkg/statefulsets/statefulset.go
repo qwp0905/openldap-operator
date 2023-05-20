@@ -15,6 +15,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 	initVolumeMounts := []corev1.VolumeMount{pods.DataVolumeMounts(cluster)}
 	rootUser := int64(0)
 	gracefulPeriod := int64(10)
+	template := cluster.GetTemplate()
 
 	if cluster.Spec.OpenldapConfig.SeedData != nil {
 		initVolumeMounts = append(volumeMounts, pods.SeedVolumeMount(cluster))
@@ -23,10 +24,10 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 
 	initContainers := []corev1.Container{{
 		Name:            cluster.InitContainerName(),
-		Image:           cluster.Spec.Image,
-		ImagePullPolicy: cluster.Spec.ImagePullPolicy,
+		Image:           template.Image,
+		ImagePullPolicy: template.ImagePullPolicy,
 		Command:         []string{"/opt/bitnami/scripts/openldap/setup.sh"},
-		Resources:       *cluster.Spec.Resources,
+		Resources:       template.Resources,
 		Env:             pods.DefaultEnvs(cluster),
 		EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
 		VolumeMounts:    initVolumeMounts,
@@ -38,9 +39,9 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 	containers := []corev1.Container{
 		{
 			Name:            cluster.Name,
-			Image:           cluster.Spec.Image,
-			ImagePullPolicy: cluster.Spec.ImagePullPolicy,
-			Resources:       *cluster.Spec.Resources,
+			Image:           template.Image,
+			ImagePullPolicy: template.ImagePullPolicy,
+			Resources:       template.Resources,
 			ReadinessProbe:  cluster.ContainerProbe(),
 			LivenessProbe:   cluster.ContainerProbe(),
 			Env:             pods.DefaultEnvs(cluster),
@@ -58,18 +59,18 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 		InitContainers:                initContainers,
 		Containers:                    containers,
 		Volumes:                       volumes,
-		Affinity:                      cluster.Spec.Affinity,
-		NodeSelector:                  cluster.Spec.NodeSelector,
+		Affinity:                      template.Affinity,
+		NodeSelector:                  template.NodeSelector,
 		TerminationGracePeriodSeconds: &gracefulPeriod,
 		ImagePullSecrets:              cluster.Spec.ImagePullSecrets,
 	}
 
-	if cluster.Spec.Tolerations != nil {
-		podSpec.Tolerations = cluster.Spec.Tolerations
+	if template.Tolerations != nil {
+		podSpec.Tolerations = template.Tolerations
 	}
 
-	if cluster.Spec.PriorityClassName != "" {
-		podSpec.PriorityClassName = cluster.Spec.PriorityClassName
+	if template.PriorityClassName != "" {
+		podSpec.PriorityClassName = template.PriorityClassName
 	}
 
 	return &appsv1.StatefulSet{

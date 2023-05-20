@@ -100,19 +100,22 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 				SecretKeyRef: cluster.Spec.OpenldapConfig.AdminPassword,
 			},
 		},
-		{
+	}
+
+	if cluster.Spec.OpenldapConfig.ConfigPassword != nil {
+		envVars = append(envVars, corev1.EnvVar{
 			Name: "LDAP_CONFIG_ADMIN_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: cluster.Spec.OpenldapConfig.ConfigPassword,
 			},
-		},
+		})
 	}
 
-	if cluster.Spec.OpenldapConfig.Env == nil || len(cluster.Spec.OpenldapConfig.Env) == 0 {
-		return envVars
+	if cluster.GetTemplate().Env != nil && len(cluster.GetTemplate().Env) > 0 {
+		envVars = append(envVars, cluster.GetTemplate().Env...)
 	}
 
-	return append(envVars, cluster.Spec.OpenldapConfig.Env...)
+	return envVars
 }
 
 func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort {
@@ -120,22 +123,22 @@ func ContainerPorts(cluster *openldapv1.OpenldapCluster) []corev1.ContainerPort 
 		{
 			Name:          "ldap",
 			Protocol:      "TCP",
-			ContainerPort: cluster.Spec.Ports.Ldap,
+			ContainerPort: cluster.LdapPort(),
 		},
 	}
 
-	if !cluster.TlsEnabled() {
-		return ports
+	if cluster.TlsEnabled() {
+		ports = append(
+			ports,
+			corev1.ContainerPort{
+				Name:          "ldaps",
+				Protocol:      "TCP",
+				ContainerPort: cluster.LdapsPort(),
+			},
+		)
 	}
 
-	return append(
-		ports,
-		corev1.ContainerPort{
-			Name:          "ldaps",
-			Protocol:      "TCP",
-			ContainerPort: cluster.Spec.Ports.Ldaps,
-		},
-	)
+	return ports
 }
 
 func DataVolumeMounts(cluster *openldapv1.OpenldapCluster) corev1.VolumeMount {
