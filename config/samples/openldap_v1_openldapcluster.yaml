@@ -10,16 +10,22 @@ metadata:
   name: openldap
   namespace: tools
 spec:
-  image: qwp1216/openldap:2.6.4
-  imagePullPolicy: IfNotPresent
   replicas: 3
-  resources:
-    limits:
-      cpu: 250m
-      memory: 256Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
+  template:
+    image: qwp1216/openldap:2.6.4
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    env:
+      - name: BITNAMI_DEBUG
+        value: "true"
+    ports:
+      ldap: 1389
   storage:
     volumeClaimTemplate:
       storageClassName: standard
@@ -35,18 +41,10 @@ spec:
     adminPassword:
       key: password
       name: openldap
-    configUsername: config
-    configPassword:
-      key: password
-      name: openldap
     root: dc=cluster,dc=local
     seedData:
       configMap:
         name: openldap-bootstrap
-    env:
-      - name: BITNAMI_DEBUG
-        value: "true"
   monitor:
     enabled: true
-  ports:
-    ldap: 1389
+

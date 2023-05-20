@@ -121,6 +121,7 @@ func (r *OpenldapCluster) SetDefault() {
 		r.Spec.OpenldapConfig.Tls = &TlsConfig{
 			Enabled: defaultTlsEnabled,
 		}
+
 	} else if r.Spec.OpenldapConfig.Tls.Enabled {
 		if r.Spec.OpenldapConfig.Tls.CaFile == "" {
 			r.Spec.OpenldapConfig.Tls.CaFile = "ca.crt"
@@ -143,23 +144,22 @@ func (r *OpenldapCluster) SetDefault() {
 		r.Spec.Monitor = &MonitorConfig{Enabled: defaultMonitorEnabled}
 	}
 
-	if r.Spec.Ports == nil {
-		r.Spec.Ports = &PortConfig{
-			Ldap:  1389,
-			Ldaps: 1636,
+	if r.GetTemplate().Ports == nil {
+		r.Spec.Template.Ports = &PortConfig{
+			Ldap: 1389,
 		}
 	}
 
-	if r.Spec.NodeSelector == nil {
-		r.Spec.NodeSelector = map[string]string{}
+	if r.GetTemplate().NodeSelector == nil {
+		r.Spec.Template.NodeSelector = map[string]string{}
 	}
 
 	if r.Spec.ImagePullSecrets == nil {
 		r.Spec.ImagePullSecrets = []corev1.LocalObjectReference{}
 	}
 
-	if r.Spec.Affinity == nil {
-		r.Spec.Affinity = &corev1.Affinity{
+	if r.GetTemplate().Affinity == nil {
+		r.Spec.Template.Affinity = &corev1.Affinity{
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 					{
