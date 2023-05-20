@@ -30,8 +30,13 @@ kind: OpenldapCluster
 metadata:
   name: openldap
 spec:
-  image: qwp1216/openldap:2.6.4
-  imagePullPolicy: IfNotPresent
+  template:
+    image: qwp1216/openldap:2.6.4
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
   replicas: 3
   storage:
     volumeClaimTemplate:
