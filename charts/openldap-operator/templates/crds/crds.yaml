@@ -1355,6 +1355,10 @@ spec:
                             type: array
                         type: object
                     type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
                   env:
                     items:
                       description: EnvVar represents an environment variable present
@@ -1469,12 +1473,17 @@ spec:
                       type: object
                     type: array
                   image:
+                    default: qwp1216/openldap:2.6.4
                     description: Openldap image based on qwp1216/openldap
                     type: string
                   imagePullPolicy:
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    type: object
                   nodeSelector:
                     additionalProperties:
                       type: string

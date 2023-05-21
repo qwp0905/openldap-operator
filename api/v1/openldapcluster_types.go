@@ -41,10 +41,17 @@ type OpenldapClusterSpec struct {
 
 type ClusterPodTemplate struct {
 	// Openldap image based on qwp1216/openldap
+	//+kubebuilder:default:="qwp1216/openldap:2.6.4"
 	Image string `json:"image,omitempty"`
 
 	//+optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	//+optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	//+optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 
 	//+optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -177,7 +184,7 @@ type OpenldapClusterList struct {
 	Items           []OpenldapCluster `json:"items"`
 }
 
-func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
+func (r *OpenldapCluster) ReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
@@ -190,6 +197,24 @@ func (r *OpenldapCluster) ContainerProbe() *corev1.Probe {
 		InitialDelaySeconds: 5,
 		PeriodSeconds:       10,
 		TimeoutSeconds:      1,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
+	}
+}
+
+func (r *OpenldapCluster) LivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: r.GetTemplate().Ports.Ldap,
+				},
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       30,
+		TimeoutSeconds:      5,
 		SuccessThreshold:    1,
 		FailureThreshold:    3,
 	}
@@ -215,6 +240,14 @@ func (r *OpenldapCluster) GetReplicas() int {
 	return int(r.Spec.Replicas)
 }
 
+func (r *OpenldapCluster) GetAnnotations() map[string]string {
+	return r.Spec.Template.Annotations
+}
+
+func (r *OpenldapCluster) GetTemplateLabels() map[string]string {
+	return r.Spec.Template.Labels
+}
+
 func (r *OpenldapCluster) SelectorLabels() map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":     r.Name,
@@ -230,6 +263,7 @@ func (r *OpenldapCluster) DefaultLabels() map[string]string {
 	}
 
 	return utils.MergeMap(
+		r.GetTemplateLabels(),
 		r.SelectorLabels(),
 		map[string]string{"app.kubernetes.io/version": version},
 	)
@@ -242,6 +276,20 @@ func (r *OpenldapCluster) MasterSelectorLabels() map[string]string {
 	)
 }
 
+func (r *OpenldapCluster) GetMasterLabels() map[string]string {
+	return utils.MergeMap(
+		r.DefaultLabels(),
+		map[string]string{"app.kubernetes.io/component": "master"},
+	)
+}
+
+func (r *OpenldapCluster) GetSlaveLabels() map[string]string {
+	return utils.MergeMap(
+		r.DefaultLabels(),
+		map[string]string{"app.kubernetes.io/component": "slave"},
+	)
+}
+
 func (r *OpenldapCluster) SlaveSelectorLabels() map[string]string {
 	return utils.MergeMap(
 		r.SelectorLabels(),
@@ -250,10 +298,13 @@ func (r *OpenldapCluster) SlaveSelectorLabels() map[string]string {
 }
 
 func (r *OpenldapCluster) JobLabels() map[string]string {
-	return map[string]string{
-		"app.kubernetes.io/name":     r.Name,
-		"app.kubernetes.io/instance": "election",
-	}
+	return utils.MergeMap(
+		r.DefaultLabels(),
+		map[string]string{
+			"app.kubernetes.io/instance":  "election",
+			"app.kubernetes.io/component": "election",
+		},
+	)
 }
 
 func (r *OpenldapCluster) ReadServiceName() string {

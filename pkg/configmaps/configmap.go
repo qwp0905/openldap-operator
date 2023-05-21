@@ -13,9 +13,10 @@ import (
 func CreateConfigMap(cluster *openldapv1.OpenldapCluster) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.ConfigMapName(),
-			Namespace: cluster.Namespace,
-			Labels:    cluster.DefaultLabels(),
+			Name:        cluster.ConfigMapName(),
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.DefaultLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Data: defaultConfigMapData(cluster),
 	}

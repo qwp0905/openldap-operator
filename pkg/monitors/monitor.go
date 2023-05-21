@@ -19,6 +19,7 @@ func CreateServiceMonitor(cluster *openldapv1.OpenldapCluster) *monitoringv1.Ser
 				cluster.SelectorLabels(),
 				cluster.Spec.Monitor.Labels,
 			),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Spec: monitoringv1.ServiceMonitorSpec{
 			JobLabel: "app.kubernetes.io/name",

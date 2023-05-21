@@ -42,8 +42,8 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 			Image:           template.Image,
 			ImagePullPolicy: template.ImagePullPolicy,
 			Resources:       template.Resources,
-			ReadinessProbe:  cluster.ContainerProbe(),
-			LivenessProbe:   cluster.ContainerProbe(),
+			ReadinessProbe:  cluster.ReadinessProbe(),
+			LivenessProbe:   cluster.LivenessProbe(),
 			Env:             pods.DefaultEnvs(cluster),
 			EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
 			Ports:           pods.ContainerPorts(cluster),
@@ -75,9 +75,10 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name,
-			Namespace: cluster.Namespace,
-			Labels:    cluster.DefaultLabels(),
+			Name:        cluster.Name,
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.DefaultLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -100,15 +101,17 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 			MinReadySeconds: 0,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: cluster.SlaveSelectorLabels(),
+					Labels:      cluster.GetSlaveLabels(),
+					Annotations: cluster.GetAnnotations(),
 				},
 				Spec: *podSpec,
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:   "data",
-						Labels: cluster.SelectorLabels(),
+						Name:        "data",
+						Labels:      cluster.SelectorLabels(),
+						Annotations: cluster.GetAnnotations(),
 					},
 					Spec: cluster.Spec.Storage.VolumeClaimTemplate,
 				},

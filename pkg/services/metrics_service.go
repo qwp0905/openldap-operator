@@ -9,9 +9,10 @@ import (
 func CreateMetricsService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.MetricsServiceName(),
-			Namespace: cluster.Namespace,
-			Labels:    cluster.DefaultLabels(),
+			Name:        cluster.MetricsServiceName(),
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.DefaultLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,

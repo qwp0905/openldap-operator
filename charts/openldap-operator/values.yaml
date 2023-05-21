@@ -26,6 +26,11 @@ webhook:
     create: true
     failurePolicy: Fail
 
+pdb:
+  enabled: false
+  # The values aren't mutable due to a current PodDisruptionBudget limitation
+  # minAvailable: 1
+
 rbac:
   create: true
 

@@ -121,8 +121,44 @@ func (r *OpenldapCluster) SetDefault() {
 		r.Spec.OpenldapConfig.Tls = &TlsConfig{
 			Enabled: defaultTlsEnabled,
 		}
+	}
 
-	} else if r.Spec.OpenldapConfig.Tls.Enabled {
+	if r.Spec.OpenldapConfig.Root == "" {
+		r.Spec.OpenldapConfig.Root = defaultRoot
+	}
+
+	if r.Spec.OpenldapConfig.AdminUsername == "" {
+		r.Spec.OpenldapConfig.AdminUsername = defaultAdmin
+	}
+
+	if r.Spec.OpenldapConfig.ConfigUsername == "" {
+		r.Spec.OpenldapConfig.ConfigUsername = defaultConfig
+	}
+
+	if r.Spec.Monitor == nil {
+		r.Spec.Monitor = &MonitorConfig{
+			Enabled: defaultMonitorEnabled,
+		}
+	}
+
+	if r.MonitorEnabled() {
+		if r.Spec.Monitor.Interval == "" {
+			r.Spec.Monitor.Interval = "30s"
+		}
+
+		if r.Spec.Monitor.ScrapeTimeout == "" {
+			r.Spec.Monitor.ScrapeTimeout = "10s"
+		}
+	}
+
+	if r.GetTemplate().Ports == nil {
+		r.Spec.Template.Ports = &PortConfig{
+			Ldap:  1389,
+			Ldaps: 1636,
+		}
+	}
+
+	if r.TlsEnabled() {
 		if r.Spec.OpenldapConfig.Tls.CaFile == "" {
 			r.Spec.OpenldapConfig.Tls.CaFile = "ca.crt"
 		}
@@ -136,26 +172,8 @@ func (r *OpenldapCluster) SetDefault() {
 		}
 	}
 
-	if r.Spec.OpenldapConfig.Root == "" {
-		r.Spec.OpenldapConfig.Root = defaultRoot
-	}
-
-	if r.Spec.Monitor == nil {
-		r.Spec.Monitor = &MonitorConfig{Enabled: defaultMonitorEnabled}
-	}
-
-	if r.GetTemplate().Ports == nil {
-		r.Spec.Template.Ports = &PortConfig{
-			Ldap: 1389,
-		}
-	}
-
-	if r.GetTemplate().NodeSelector == nil {
-		r.Spec.Template.NodeSelector = map[string]string{}
-	}
-
-	if r.Spec.ImagePullSecrets == nil {
-		r.Spec.ImagePullSecrets = []corev1.LocalObjectReference{}
+	if r.GetTemplate().Image == "" {
+		r.Spec.Template.Image = "qwp1216/openldap:2.6.4"
 	}
 
 	if r.GetTemplate().Affinity == nil {
