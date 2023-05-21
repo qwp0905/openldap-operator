@@ -8,7 +8,6 @@ import (
 	"github.com/qwp0905/openldap-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -182,42 +181,6 @@ type OpenldapClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []OpenldapCluster `json:"items"`
-}
-
-func (r *OpenldapCluster) ReadinessProbe() *corev1.Probe {
-	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: r.GetTemplate().Ports.Ldap,
-				},
-			},
-		},
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       10,
-		TimeoutSeconds:      1,
-		SuccessThreshold:    1,
-		FailureThreshold:    3,
-	}
-}
-
-func (r *OpenldapCluster) LivenessProbe() *corev1.Probe {
-	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: r.GetTemplate().Ports.Ldap,
-				},
-			},
-		},
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       30,
-		TimeoutSeconds:      5,
-		SuccessThreshold:    1,
-		FailureThreshold:    3,
-	}
 }
 
 func (r *OpenldapCluster) InitContainerName() string {
