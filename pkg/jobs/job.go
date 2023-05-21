@@ -14,14 +14,16 @@ func CreateSlaveToMasterJob(cluster *openldapv1.OpenldapCluster) *batchv1.Job {
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.JobName(),
-			Namespace: cluster.Namespace,
-			Labels:    cluster.JobLabels(),
+			Name:        cluster.JobName(),
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.JobLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: &ttl,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
+					Labels: cluster.JobLabels(),
 					Annotations: map[string]string{
 						"sidecar.istio.io/inject": "false",
 					},

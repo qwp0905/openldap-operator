@@ -27,7 +27,7 @@ func CreateWriteService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.WriteServiceName(),
 			Namespace: cluster.Namespace,
-			Labels:    cluster.MasterSelectorLabels(),
+			Labels:    cluster.GetMasterLabels(),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,

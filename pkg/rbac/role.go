@@ -9,9 +9,10 @@ import (
 func CreateRole(cluster *openldapv1.OpenldapCluster) *rbacv1.Role {
 	return &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name,
-			Namespace: cluster.Namespace,
-			Labels:    cluster.JobLabels(),
+			Name:        cluster.Name,
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.JobLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{

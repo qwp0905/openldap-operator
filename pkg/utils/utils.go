@@ -1,14 +1,12 @@
 package utils
 
-func MergeMap[K comparable, V comparable](m1 map[K]V, m2 map[K]V) map[K]V {
+func MergeMap[K comparable, V comparable](m1 map[K]V, m2 ...map[K]V) map[K]V {
 	result := map[K]V{}
 
-	for k, v := range m1 {
-		result[k] = v
-	}
-
-	for k, v := range m2 {
-		result[k] = v
+	for _, m := range append([]map[K]V{m1}, m2...) {
+		for k, v := range m {
+			result[k] = v
+		}
 	}
 
 	return result

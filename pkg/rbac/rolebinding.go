@@ -9,9 +9,10 @@ import (
 func CreateRoleBinding(cluster *openldapv1.OpenldapCluster) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cluster.Name,
-			Namespace: cluster.Namespace,
-			Labels:    cluster.JobLabels(),
+			Name:        cluster.Name,
+			Namespace:   cluster.Namespace,
+			Labels:      cluster.JobLabels(),
+			Annotations: cluster.GetAnnotations(),
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
