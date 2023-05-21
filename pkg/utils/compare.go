@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func CompareLabels(exists map[string]string, new map[string]string) bool {
+func CompareMap(exists map[string]string, new map[string]string) bool {
 	for key, val := range new {
 		if exists[key] != val {
 			return false

@@ -77,5 +77,5 @@ func (r *OpenldapClusterReconciler) compareRole(
 	exists *rbacv1.Role,
 	new *rbacv1.Role,
 ) bool {
-	return utils.CompareLabels(exists.Labels, new.Labels)
+	return utils.CompareMap(exists.Labels, new.Labels)
 }

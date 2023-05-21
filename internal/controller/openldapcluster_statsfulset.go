@@ -84,11 +84,11 @@ func (r *OpenldapClusterReconciler) getStatefulset(
 }
 
 func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) (string, bool) {
-	if !utils.CompareLabels(exists.Labels, new.Labels) {
+	if !utils.CompareMap(exists.Labels, new.Labels) {
 		return "labels", false
 	}
 
-	if !utils.CompareLabels(exists.Annotations, new.Annotations) {
+	if !utils.CompareMap(exists.Annotations, new.Annotations) {
 		return "annotations", false
 	}
 

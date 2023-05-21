@@ -197,11 +197,11 @@ func (r *OpenldapClusterReconciler) compareService(
 	exists *corev1.Service,
 	new *corev1.Service,
 ) bool {
-	if !utils.CompareLabels(exists.Labels, new.Labels) {
+	if !utils.CompareMap(exists.Labels, new.Labels) {
 		return false
 	}
 
-	if !utils.CompareLabels(exists.Annotations, new.Annotations) {
+	if !utils.CompareMap(exists.Annotations, new.Annotations) {
 		return false
 	}
 
