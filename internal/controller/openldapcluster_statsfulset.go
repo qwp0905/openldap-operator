@@ -50,13 +50,7 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 		return false, nil
 	}
 
-	existsStatefulset.Spec.Replicas = updatedStatefulset.Spec.Replicas
-	existsStatefulset.Spec.Template.Spec = updatedStatefulset.Spec.Template.Spec
-	existsStatefulset.Spec.VolumeClaimTemplates = updatedStatefulset.Spec.VolumeClaimTemplates
-	existsStatefulset.SetLabels(updatedStatefulset.GetLabels())
-	existsStatefulset.SetAnnotations(updatedStatefulset.GetAnnotations())
-
-	if err = r.Update(ctx, existsStatefulset); err != nil {
+	if err = r.Update(ctx, updatedStatefulset); err != nil {
 		logger.Error(err, "Error on Updating Statefulset...")
 		return false, err
 	}

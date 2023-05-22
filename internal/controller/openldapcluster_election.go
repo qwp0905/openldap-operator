@@ -16,10 +16,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+var electionTriggered = false
+
 func (r *OpenldapClusterReconciler) election(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (int, error) {
+	if electionTriggered {
+		return 0, nil
+	}
+
+	electionTriggered = true
+	defer func() {
+		electionTriggered = false
+	}()
+
 	logger := log.FromContext(ctx)
 
 	if cluster.IsConditionsEmpty() {

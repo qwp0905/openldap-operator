@@ -25,7 +25,6 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 		}
 
 		if !cluster.MonitorEnabled() {
-			logger.Info("Nothing to update on service monitor")
 			return false, nil
 		}
 
@@ -60,6 +59,7 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 		return false, nil
 	}
 
+	updatedServiceMonitor.ResourceVersion = existsServiceMonitor.ResourceVersion
 	if err = r.Update(ctx, updatedServiceMonitor); err != nil {
 		logger.Error(err, "Error on Updating ServiceMonitor...")
 		return false, err
