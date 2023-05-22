@@ -50,13 +50,7 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 		return false, nil
 	}
 
-	existsStatefulset.Spec.Replicas = updatedStatefulset.Spec.Replicas
-	existsStatefulset.Spec.Template.Spec = updatedStatefulset.Spec.Template.Spec
-	existsStatefulset.Spec.VolumeClaimTemplates = updatedStatefulset.Spec.VolumeClaimTemplates
-	existsStatefulset.SetLabels(updatedStatefulset.GetLabels())
-	existsStatefulset.SetAnnotations(updatedStatefulset.GetAnnotations())
-
-	if err = r.Update(ctx, existsStatefulset); err != nil {
+	if err = r.Update(ctx, updatedStatefulset); err != nil {
 		logger.Error(err, "Error on Updating Statefulset...")
 		return false, err
 	}
@@ -84,11 +78,11 @@ func (r *OpenldapClusterReconciler) getStatefulset(
 }
 
 func compareStatefulset(exists *appsv1.StatefulSet, new *appsv1.StatefulSet) (string, bool) {
-	if !utils.CompareLabels(exists.Labels, new.Labels) {
+	if !utils.CompareMap(exists.Labels, new.Labels) {
 		return "labels", false
 	}
 
-	if !utils.CompareLabels(exists.Annotations, new.Annotations) {
+	if !utils.CompareMap(exists.Annotations, new.Annotations) {
 		return "annotations", false
 	}
 

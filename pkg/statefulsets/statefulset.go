@@ -42,12 +42,40 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 			Image:           template.Image,
 			ImagePullPolicy: template.ImagePullPolicy,
 			Resources:       template.Resources,
-			ReadinessProbe:  cluster.ReadinessProbe(),
-			LivenessProbe:   cluster.LivenessProbe(),
-			Env:             pods.DefaultEnvs(cluster),
-			EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
-			Ports:           pods.ContainerPorts(cluster),
-			VolumeMounts:    volumeMounts,
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: cluster.LdapPort(),
+						},
+					},
+				},
+				InitialDelaySeconds: 5,
+				PeriodSeconds:       10,
+				TimeoutSeconds:      1,
+				SuccessThreshold:    1,
+				FailureThreshold:    3,
+			},
+			LivenessProbe: &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: cluster.LdapPort(),
+						},
+					},
+				},
+				InitialDelaySeconds: 10,
+				PeriodSeconds:       30,
+				TimeoutSeconds:      5,
+				SuccessThreshold:    1,
+				FailureThreshold:    3,
+			},
+			Env:          pods.DefaultEnvs(cluster),
+			EnvFrom:      []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
+			Ports:        pods.ContainerPorts(cluster),
+			VolumeMounts: volumeMounts,
 		},
 	}
 

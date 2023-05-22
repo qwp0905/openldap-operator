@@ -16,7 +16,7 @@ func CreateServiceMonitor(cluster *openldapv1.OpenldapCluster) *monitoringv1.Ser
 			Name:      cluster.Name,
 			Namespace: cluster.Namespace,
 			Labels: utils.MergeMap(
-				cluster.SelectorLabels(),
+				cluster.DefaultLabels(),
 				cluster.Spec.Monitor.Labels,
 			),
 			Annotations: cluster.GetAnnotations(),
