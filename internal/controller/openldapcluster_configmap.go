@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setConfigMap(
+func (r *OpenldapClusterReconciler) ensureConfigMap(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -37,6 +37,7 @@ func (r *OpenldapClusterReconciler) setConfigMap(
 		}
 
 		logger.Info("ConfigMap Created!")
+		r.Recorder.Eventf(cluster, "Normal", "ConfigMapCreated", "ConfigMap %s Created", newConfigMap.Name)
 		return true, nil
 	}
 
@@ -48,12 +49,14 @@ func (r *OpenldapClusterReconciler) setConfigMap(
 
 	existsConfigMap.Labels = updatedConfigMap.Labels
 	existsConfigMap.Annotations = updatedConfigMap.Annotations
+	existsConfigMap.Data = updatedConfigMap.Data
 
 	if err = r.Update(ctx, existsConfigMap); err != nil {
 		logger.Error(err, "Error on Updating ConfigMap...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(cluster, "Normal", "ConfigMapUpdated", "ConfigMap %s Updated", existsConfigMap.Name)
 	logger.Info("ConfigMap Updated")
 	return true, nil
 }

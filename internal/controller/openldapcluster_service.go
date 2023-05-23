@@ -12,11 +12,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setService(
+func (r *OpenldapClusterReconciler) ensureService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
-	requeue, err := r.setWriteService(ctx, cluster)
+	requeue, err := r.ensureWriteService(ctx, cluster)
 	if err != nil {
 		return false, err
 	}
@@ -24,7 +24,7 @@ func (r *OpenldapClusterReconciler) setService(
 		return true, nil
 	}
 
-	requeue, err = r.setReadService(ctx, cluster)
+	requeue, err = r.ensureReadService(ctx, cluster)
 	if err != nil {
 		return false, err
 	}
@@ -32,7 +32,7 @@ func (r *OpenldapClusterReconciler) setService(
 		return true, nil
 	}
 
-	requeue, err = r.setMetricsService(ctx, cluster)
+	requeue, err = r.ensureMetricsService(ctx, cluster)
 	if err != nil {
 		return false, err
 	}
@@ -61,7 +61,7 @@ func (r *OpenldapClusterReconciler) getService(
 	return service, nil
 }
 
-func (r *OpenldapClusterReconciler) setWriteService(
+func (r *OpenldapClusterReconciler) ensureWriteService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -86,26 +86,44 @@ func (r *OpenldapClusterReconciler) setWriteService(
 			return false, nil
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"WriteServiceCreated",
+			"Service %s created",
+			newService.Name,
+		)
 		logger.Info("Write Service Created")
 		return true, nil
 	}
 
-	newService := services.CreateWriteService(cluster)
+	updatedService := services.CreateWriteService(cluster)
 
-	if r.compareService(existsService, newService) {
+	if r.compareService(existsService, updatedService) {
 		return false, nil
 	}
 
-	if err = r.Update(ctx, newService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Write Service...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"WriteServiceUpdated",
+		"Service %s updated",
+		updatedService.Name,
+	)
 	logger.Info("Write Service Updated")
 	return true, nil
 }
 
-func (r *OpenldapClusterReconciler) setReadService(
+func (r *OpenldapClusterReconciler) ensureReadService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -130,26 +148,44 @@ func (r *OpenldapClusterReconciler) setReadService(
 			return false, nil
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ReadServiceCreated",
+			"Service %s created",
+			newService.Name,
+		)
 		logger.Info("Read Service Created")
 		return true, nil
 	}
 
-	newService := services.CreateReadService(cluster)
+	updatedService := services.CreateReadService(cluster)
 
-	if r.compareService(existsService, newService) {
+	if r.compareService(existsService, updatedService) {
 		return false, nil
 	}
 
-	if err = r.Update(ctx, newService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Read Service...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"ReadServiceUpdated",
+		"Service %s updated",
+		updatedService.Name,
+	)
 	logger.Info("Read Service Updated")
 	return true, nil
 }
 
-func (r *OpenldapClusterReconciler) setMetricsService(
+func (r *OpenldapClusterReconciler) ensureMetricsService(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -174,21 +210,39 @@ func (r *OpenldapClusterReconciler) setMetricsService(
 			return false, nil
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"MetricsServiceCreated",
+			"Service %s created",
+			newService.Name,
+		)
 		logger.Info("Metrics Service Created")
 		return true, nil
 	}
 
-	newService := services.CreateMetricsService(cluster)
+	updatedService := services.CreateMetricsService(cluster)
 
-	if r.compareService(existsService, newService) {
+	if r.compareService(existsService, updatedService) {
 		return false, nil
 	}
 
-	if err = r.Update(ctx, newService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Metrics Service...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"MetricsServiceUpdated",
+		"Service %s updated",
+		updatedService.Name,
+	)
 	logger.Info("Metrics Service Updated")
 	return true, nil
 }

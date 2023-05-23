@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setServiceMonitor(
+func (r *OpenldapClusterReconciler) ensureServiceMonitor(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -39,6 +39,13 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ServiceMonitorCreated",
+			"ServiceMonitor %s created",
+			newServiceMonitor.Name,
+		)
 		logger.Info("ServiceMonitor Created")
 		return true, nil
 	}
@@ -49,6 +56,13 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ServiceMonitorDeleted",
+			"ServiceMonitor %s deleted",
+			existsServiceMonitor.Name,
+		)
 		logger.Info("ServiceMonitor Deleted")
 		return true, nil
 	}
@@ -59,12 +73,22 @@ func (r *OpenldapClusterReconciler) setServiceMonitor(
 		return false, nil
 	}
 
-	updatedServiceMonitor.ResourceVersion = existsServiceMonitor.ResourceVersion
-	if err = r.Update(ctx, updatedServiceMonitor); err != nil {
+	existsServiceMonitor.SetLabels(updatedServiceMonitor.GetLabels())
+	existsServiceMonitor.SetAnnotations(updatedServiceMonitor.GetAnnotations())
+	existsServiceMonitor.Spec = updatedServiceMonitor.Spec
+
+	if err = r.Update(ctx, existsServiceMonitor); err != nil {
 		logger.Error(err, "Error on Updating ServiceMonitor...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"ServiceMonitorUpdated",
+		"ServiceMonitor %s updated",
+		existsServiceMonitor.Name,
+	)
 	logger.Info("ServiceMonitor Updated")
 	return true, nil
 }

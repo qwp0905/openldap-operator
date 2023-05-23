@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setRoleBinding(
+func (r *OpenldapClusterReconciler) ensureRoleBinding(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -37,21 +37,38 @@ func (r *OpenldapClusterReconciler) setRoleBinding(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"RoleBindingCreated",
+			"RoleBinding %s created",
+			newRoleBinding.Name,
+		)
 		logger.Info("RoleBinding Created")
 		return true, nil
 	}
 
-	newRoleBinding := rbac.CreateRoleBinding(cluster)
+	updatedRoleBinding := rbac.CreateRoleBinding(cluster)
 
-	if r.compareRoleBinding(existsRoleBinding, newRoleBinding) {
+	if r.compareRoleBinding(existsRoleBinding, updatedRoleBinding) {
 		return false, nil
 	}
 
-	if err = r.Update(ctx, newRoleBinding); err != nil {
+	existsRoleBinding.SetLabels(updatedRoleBinding.GetLabels())
+	existsRoleBinding.SetAnnotations(updatedRoleBinding.GetAnnotations())
+
+	if err = r.Update(ctx, existsRoleBinding); err != nil {
 		logger.Error(err, "Error on Updating RoleBinding....")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"RoleBindingUpdated",
+		"RoleBinding %s updated",
+		updatedRoleBinding.Name,
+	)
 	logger.Info("RoleBinding Updated")
 	return true, nil
 }

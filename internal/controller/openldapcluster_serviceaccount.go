@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setServiceAccount(
+func (r *OpenldapClusterReconciler) ensureServiceAccount(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -37,6 +37,13 @@ func (r *OpenldapClusterReconciler) setServiceAccount(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ServiceAccountCreated",
+			"ServiceAccount %s created",
+			newServiceAccount.Name,
+		)
 		logger.Info("ServiceAccount Created!")
 		return true, nil
 	}
@@ -47,14 +54,21 @@ func (r *OpenldapClusterReconciler) setServiceAccount(
 		return false, nil
 	}
 
-	existsServiceAccount.Labels = updatedServiceAccount.Labels
-	existsServiceAccount.Annotations = updatedServiceAccount.Annotations
+	existsServiceAccount.SetLabels(updatedServiceAccount.GetLabels())
+	existsServiceAccount.SetAnnotations(updatedServiceAccount.GetAnnotations())
 
 	if err = r.Update(ctx, existsServiceAccount); err != nil {
 		logger.Error(err, "Error on Updating ServiceAccount...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"ServiceAccountUpdated",
+		"ServiceAccount %s updated",
+		updatedServiceAccount.Name,
+	)
 	logger.Info("ServiceAccount Updated")
 	return true, nil
 }
