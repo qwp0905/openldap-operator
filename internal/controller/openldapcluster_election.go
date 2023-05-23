@@ -16,21 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var electionTriggered = false
-
 func (r *OpenldapClusterReconciler) election(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (int, error) {
-	if electionTriggered {
-		return 0, nil
-	}
-
-	electionTriggered = true
-	defer func() {
-		electionTriggered = false
-	}()
-
 	logger := log.FromContext(ctx)
 
 	if cluster.IsConditionsEmpty() {
@@ -52,7 +41,13 @@ func (r *OpenldapClusterReconciler) election(
 			logger.Error(err, "Error on Updating Cluster Desired Master....")
 			return 0, err
 		}
-
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"DesiredMasterCreated",
+			"First Desired Master to be set %s",
+			cluster.GetDesiredMaster(),
+		)
 		logger.Info("Master Pod Set 0")
 		return 2, nil
 	}
@@ -172,6 +167,13 @@ func (r *OpenldapClusterReconciler) election(
 			return 0, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ElectionCompleted",
+			"Current master updated to %s",
+			cluster.GetCurrentMaster(),
+		)
 		logger.Info("Master Pod Updated")
 		return 10, nil
 	}
@@ -180,6 +182,13 @@ func (r *OpenldapClusterReconciler) election(
 		cluster.DeleteInitializedCondition()
 		cluster.SetConditionReady(true)
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"ClusterReady",
+			"Cluster %s has ready status",
+			cluster.Name,
+		)
 		if err := r.Status().Update(ctx, cluster); err != nil {
 			logger.Error(err, "Error on Updating Cluster status Running...")
 			return 0, err
@@ -213,6 +222,13 @@ func (r *OpenldapClusterReconciler) electMaster(
 	cluster *openldapv1.OpenldapCluster,
 ) error {
 	logger := log.FromContext(ctx)
+	r.Recorder.Eventf(
+		cluster,
+		"Warning",
+		"MasterUnhealthy",
+		"Election triggered because of current master pod %s unhealthy",
+		cluster.GetCurrentMaster(),
+	)
 
 	cluster.DeleteCurrentMaster()
 	cluster.SetConditionElected(false)
@@ -223,6 +239,18 @@ func (r *OpenldapClusterReconciler) electMaster(
 
 	nextIndex, err := r.getAlivePodIndex(ctx, cluster)
 	if err != nil {
+		cluster.SetConditionReady(false)
+		if err := r.Status().Update(ctx, cluster); err != nil {
+			logger.Error(err, "Error on Updating Cluster Condition Ready....")
+			return err
+		}
+		r.Recorder.Eventf(
+			cluster,
+			"Warning",
+			"ClusterUnhealthy",
+			"Cannot find healthy pod in cluster %s",
+			cluster.Name,
+		)
 		logger.Error(err, "Error on get pods...")
 		return err
 	}
@@ -233,7 +261,7 @@ func (r *OpenldapClusterReconciler) electMaster(
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("Desired Master Updated to %s", strconv.Itoa(nextIndex)))
+	logger.Info(fmt.Sprintf("Desired master updated to %s", strconv.Itoa(nextIndex)))
 	return nil
 }
 

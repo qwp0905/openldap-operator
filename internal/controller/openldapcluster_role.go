@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setRole(
+func (r *OpenldapClusterReconciler) ensureRole(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -37,21 +37,35 @@ func (r *OpenldapClusterReconciler) setRole(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"RoleCreated",
+			"Role %s created",
+			newRole.Name,
+		)
 		logger.Info("Role Created")
 		return true, nil
 	}
 
-	newRole := rbac.CreateRole(cluster)
+	updatedRole := rbac.CreateRole(cluster)
 
-	if r.compareRole(existsRole, newRole) {
+	if r.compareRole(existsRole, updatedRole) {
 		return false, nil
 	}
 
-	if err = r.Update(ctx, newRole); err != nil {
+	if err = r.Update(ctx, updatedRole); err != nil {
 		logger.Error(err, "Error on Updating Role...")
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"RoleUpdated",
+		"Role %s updated",
+		updatedRole.Name,
+	)
 	logger.Info("Role Updated")
 	return true, nil
 }

@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,7 +35,8 @@ import (
 // OpenldapClusterReconciler reconciles a OpenldapCluster object
 type OpenldapClusterReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=openldap.kwonjin.click,resources=openldapclusters,verbs=get;list;watch;create;update;patch;delete
@@ -62,7 +64,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	requeue, err := r.setConfigMap(ctx, cluster)
+	requeue, err := r.ensureConfigMap(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -70,7 +72,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setRole(ctx, cluster)
+	requeue, err = r.ensureRole(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -78,7 +80,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setServiceAccount(ctx, cluster)
+	requeue, err = r.ensureServiceAccount(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -86,7 +88,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setRoleBinding(ctx, cluster)
+	requeue, err = r.ensureRoleBinding(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -94,7 +96,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setService(ctx, cluster)
+	requeue, err = r.ensureService(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -102,7 +104,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setServiceMonitor(ctx, cluster)
+	requeue, err = r.ensureServiceMonitor(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -110,7 +112,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
-	requeue, err = r.setStatefulset(ctx, cluster)
+	requeue, err = r.ensureStatefulset(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

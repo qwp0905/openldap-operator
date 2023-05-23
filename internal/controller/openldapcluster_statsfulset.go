@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (r *OpenldapClusterReconciler) setStatefulset(
+func (r *OpenldapClusterReconciler) ensureStatefulset(
 	ctx context.Context,
 	cluster *openldapv1.OpenldapCluster,
 ) (bool, error) {
@@ -39,6 +39,13 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 			return false, err
 		}
 
+		r.Recorder.Eventf(
+			cluster,
+			"Normal",
+			"StatefulsetCreated",
+			"Statefulset %s created",
+			newStatefulset.Name,
+		)
 		logger.Info("Statefulset Created")
 		return true, nil
 	}
@@ -55,6 +62,13 @@ func (r *OpenldapClusterReconciler) setStatefulset(
 		return false, err
 	}
 
+	r.Recorder.Eventf(
+		cluster,
+		"Normal",
+		"StatefulsetUpdated",
+		"Statefulset %s updated",
+		updatedStatefulset.Name,
+	)
 	logger.Info(fmt.Sprintf("Statefulset Updated %s changed", reason))
 	return true, nil
 }
