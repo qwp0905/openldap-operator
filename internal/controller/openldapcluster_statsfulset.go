@@ -57,7 +57,11 @@ func (r *OpenldapClusterReconciler) ensureStatefulset(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedStatefulset); err != nil {
+	existsStatefulset.SetLabels(updatedStatefulset.GetLabels())
+	existsStatefulset.SetAnnotations(updatedStatefulset.GetAnnotations())
+	existsStatefulset.Spec = updatedStatefulset.Spec
+
+	if err = r.Update(ctx, existsStatefulset); err != nil {
 		logger.Error(err, "Error on Updating Statefulset...")
 		return false, err
 	}

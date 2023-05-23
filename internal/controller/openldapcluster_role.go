@@ -54,7 +54,10 @@ func (r *OpenldapClusterReconciler) ensureRole(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedRole); err != nil {
+	existsRole.SetAnnotations(updatedRole.GetAnnotations())
+	existsRole.SetLabels(updatedRole.GetLabels())
+
+	if err = r.Update(ctx, existsRole); err != nil {
 		logger.Error(err, "Error on Updating Role...")
 		return false, err
 	}

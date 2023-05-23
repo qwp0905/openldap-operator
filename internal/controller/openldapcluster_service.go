@@ -103,7 +103,11 @@ func (r *OpenldapClusterReconciler) ensureWriteService(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Write Service...")
 		return false, err
 	}
@@ -161,7 +165,11 @@ func (r *OpenldapClusterReconciler) ensureReadService(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Read Service...")
 		return false, err
 	}
@@ -219,7 +227,11 @@ func (r *OpenldapClusterReconciler) ensureMetricsService(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedService); err != nil {
+	existsService.SetLabels(updatedService.GetLabels())
+	existsService.SetAnnotations(updatedService.GetAnnotations())
+	existsService.Spec = updatedService.Spec
+
+	if err = r.Update(ctx, existsService); err != nil {
 		logger.Error(err, "Error on Updating Metrics Service...")
 		return false, err
 	}

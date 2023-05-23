@@ -54,8 +54,8 @@ func (r *OpenldapClusterReconciler) ensureServiceAccount(
 		return false, nil
 	}
 
-	existsServiceAccount.Labels = updatedServiceAccount.Labels
-	existsServiceAccount.Annotations = updatedServiceAccount.Annotations
+	existsServiceAccount.SetLabels(updatedServiceAccount.GetLabels())
+	existsServiceAccount.SetAnnotations(updatedServiceAccount.GetAnnotations())
 
 	if err = r.Update(ctx, existsServiceAccount); err != nil {
 		logger.Error(err, "Error on Updating ServiceAccount...")

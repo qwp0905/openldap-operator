@@ -73,8 +73,11 @@ func (r *OpenldapClusterReconciler) ensureServiceMonitor(
 		return false, nil
 	}
 
-	updatedServiceMonitor.ResourceVersion = existsServiceMonitor.ResourceVersion
-	if err = r.Update(ctx, updatedServiceMonitor); err != nil {
+	existsServiceMonitor.SetLabels(updatedServiceMonitor.GetLabels())
+	existsServiceMonitor.SetAnnotations(updatedServiceMonitor.GetAnnotations())
+	existsServiceMonitor.Spec = updatedServiceMonitor.Spec
+
+	if err = r.Update(ctx, existsServiceMonitor); err != nil {
 		logger.Error(err, "Error on Updating ServiceMonitor...")
 		return false, err
 	}

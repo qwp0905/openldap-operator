@@ -54,7 +54,10 @@ func (r *OpenldapClusterReconciler) ensureRoleBinding(
 		return false, nil
 	}
 
-	if err = r.Update(ctx, updatedRoleBinding); err != nil {
+	existsRoleBinding.SetLabels(updatedRoleBinding.GetLabels())
+	existsRoleBinding.SetAnnotations(updatedRoleBinding.GetAnnotations())
+
+	if err = r.Update(ctx, existsRoleBinding); err != nil {
 		logger.Error(err, "Error on Updating RoleBinding....")
 		return false, err
 	}

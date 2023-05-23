@@ -49,6 +49,7 @@ func (r *OpenldapClusterReconciler) ensureConfigMap(
 
 	existsConfigMap.Labels = updatedConfigMap.Labels
 	existsConfigMap.Annotations = updatedConfigMap.Annotations
+	existsConfigMap.Data = updatedConfigMap.Data
 
 	if err = r.Update(ctx, existsConfigMap); err != nil {
 		logger.Error(err, "Error on Updating ConfigMap...")
