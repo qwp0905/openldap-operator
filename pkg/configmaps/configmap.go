@@ -25,7 +25,6 @@ func CreateConfigMap(cluster *openldapv1.OpenldapCluster) *corev1.ConfigMap {
 func defaultConfigMapData(cluster *openldapv1.OpenldapCluster) (data map[string]string) {
 	data = map[string]string{
 		"LDAP_CUSTOM_LDIF_DIR":       cluster.SeedDataPath(),
-		"LDAP_ALLOW_ANON_BINDING":    "no",
 		"LDAP_ENABLE_TLS":            utils.ConvertBool(cluster.TlsEnabled()),
 		"LDAP_PORT_NUMBER":           strconv.Itoa(int(cluster.LdapPort())),
 		"LDAP_ROOT":                  cluster.Spec.OpenldapConfig.Root,
