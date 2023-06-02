@@ -64,15 +64,7 @@ func (r *OpenldapClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	requeue, err := r.ensureConfigMap(ctx, cluster)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if requeue {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
-	}
-
-	requeue, err = r.ensureRole(ctx, cluster)
+	requeue, err := r.ensureRole(ctx, cluster)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
