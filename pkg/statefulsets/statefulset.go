@@ -29,6 +29,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 		Command:         []string{"/opt/bitnami/scripts/openldap/setup.sh"},
 		Resources:       template.Resources,
 		Env:             pods.DefaultEnvs(cluster),
+		EnvFrom:         []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
 		VolumeMounts:    initVolumeMounts,
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser: &rootUser,
@@ -72,6 +73,7 @@ func CreateStatefulset(cluster *openldapv1.OpenldapCluster) *appsv1.StatefulSet 
 				FailureThreshold:    3,
 			},
 			Env:          pods.DefaultEnvs(cluster),
+			EnvFrom:      []corev1.EnvFromSource{pods.ConfigEnvFrom(cluster)},
 			Ports:        pods.ContainerPorts(cluster),
 			VolumeMounts: volumeMounts,
 		},
