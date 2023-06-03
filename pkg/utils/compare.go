@@ -2,6 +2,7 @@ package utils
 
 import (
 	"reflect"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -25,21 +26,17 @@ func ConvertBool(flag bool) string {
 }
 
 func CompareEnv(c1, c2 corev1.Container) bool {
-	for _, de := range c2.Env {
-		be := Find(c1.Env, func(e corev1.EnvVar) bool {
-			return e.Name == de.Name
-		})
+	e1 := c1.DeepCopy().Env
+	e2 := c2.DeepCopy().Env
 
-		if be == nil {
-			return false
-		}
+	sort.Slice(e1, func(i, j int) bool {
+		return e1[i].Name > e1[j].Name
+	})
+	sort.Slice(e2, func(i, j int) bool {
+		return e2[i].Name > e2[j].Name
+	})
 
-		if be.Value != de.Value {
-			return false
-		}
-	}
-
-	return true
+	return reflect.DeepEqual(e1, e2)
 }
 
 func ComparePVC(vc1, vc2 corev1.PersistentVolumeClaim) bool {
@@ -74,4 +71,15 @@ func ComparePVC(vc1, vc2 corev1.PersistentVolumeClaim) bool {
 	}
 
 	return true
+}
+
+func CompareServicePorts(p1, p2 []corev1.ServicePort) bool {
+	sort.Slice(p1, func(i, j int) bool {
+		return p1[i].Port > p1[j].Port
+	})
+	sort.Slice(p2, func(i, j int) bool {
+		return p2[i].Port > p2[j].Port
+	})
+
+	return reflect.DeepEqual(p1, p2)
 }

@@ -1,9 +1,11 @@
 package pods
 
 import (
+	"fmt"
 	"strconv"
 
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
+	"github.com/qwp0905/openldap-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -82,16 +84,6 @@ func DataVolume(cluster *openldapv1.OpenldapCluster, index int) corev1.Volume {
 	}
 }
 
-func ConfigEnvFrom(cluster *openldapv1.OpenldapCluster) corev1.EnvFromSource {
-	return corev1.EnvFromSource{
-		ConfigMapRef: &corev1.ConfigMapEnvSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: cluster.ConfigMapName(),
-			},
-		},
-	}
-}
-
 func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
@@ -99,6 +91,21 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: cluster.Spec.OpenldapConfig.AdminPassword,
 			},
+		},
+		{Name: "LDAP_CUSTOM_LDIF_DIR", Value: cluster.SeedDataPath()},
+		{Name: "LDAP_ENABLE_TLS", Value: utils.ConvertBool(cluster.TlsEnabled())},
+		{Name: "LDAP_PORT_NUMBER", Value: strconv.Itoa(int(cluster.LdapPort()))},
+		{Name: "LDAP_ROOT", Value: cluster.Spec.OpenldapConfig.Root},
+		{Name: "LDAP_CONFIG_ADMIN_ENABLED", Value: "yes"},
+		{Name: "LDAP_ADMIN_USERNAME", Value: cluster.Spec.OpenldapConfig.AdminUsername},
+		{Name: "LDAP_CONFIG_ADMIN_USERNAME", Value: cluster.Spec.OpenldapConfig.ConfigUsername},
+		{
+			Name: "MASTER_HOST", Value: fmt.Sprintf(
+				"ldap://%s.%s.svc.cluster.local:%s",
+				cluster.WriteServiceName(),
+				cluster.Namespace,
+				strconv.Itoa(int(cluster.LdapPort())),
+			),
 		},
 	}
 
@@ -113,6 +120,41 @@ func DefaultEnvs(cluster *openldapv1.OpenldapCluster) []corev1.EnvVar {
 
 	if cluster.GetTemplate().Env != nil && len(cluster.GetTemplate().Env) > 0 {
 		envVars = append(envVars, cluster.GetTemplate().Env...)
+	}
+
+	if cluster.TlsEnabled() {
+		tlsEnvs := []corev1.EnvVar{
+			{
+				Name:  "LDAP_LDAPS_PORT_NUMBER",
+				Value: strconv.Itoa(int(cluster.LdapsPort())),
+			},
+			{
+				Name: "LDAP_TLS_CERT_FILE",
+				Value: fmt.Sprintf(
+					"%s/%s",
+					cluster.TlsMountPath(),
+					cluster.Spec.OpenldapConfig.Tls.CertFile,
+				),
+			},
+			{
+				Name: "LDAP_TLS_KEY_FILE",
+				Value: fmt.Sprintf(
+					"%s/%s",
+					cluster.TlsMountPath(),
+					cluster.Spec.OpenldapConfig.Tls.KeyFile,
+				),
+			},
+			{
+				Name: "LDAP_TLS_CA_FILE",
+				Value: fmt.Sprintf(
+					"%s/%s",
+					cluster.TlsMountPath(),
+					cluster.Spec.OpenldapConfig.Tls.CaFile,
+				),
+			},
+		}
+
+		envVars = append(envVars, tlsEnvs...)
 	}
 
 	return envVars

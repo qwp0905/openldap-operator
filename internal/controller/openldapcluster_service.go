@@ -259,20 +259,8 @@ func (r *OpenldapClusterReconciler) compareService(
 		return false
 	}
 
-	exPorts := []int32{}
-	for _, p := range exists.Spec.Ports {
-		exPorts = append(exPorts, p.Port)
-	}
-
-	result := true
-	for _, ne := range new.Spec.Ports {
-		rr := false
-		for _, ex := range exPorts {
-			rr = (ne.Port == ex) || rr
-		}
-
-		result = result && rr
-	}
-
-	return result
+	return utils.CompareServicePorts(
+		exists.DeepCopy().Spec.Ports,
+		new.DeepCopy().Spec.Ports,
+	)
 }
