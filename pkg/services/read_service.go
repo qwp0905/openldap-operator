@@ -4,6 +4,7 @@ import (
 	openldapv1 "github.com/qwp0905/openldap-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func CreateReadService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
@@ -12,6 +13,10 @@ func CreateReadService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 			Name:     "ldap",
 			Port:     cluster.LdapPort(),
 			Protocol: corev1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: cluster.LdapPort(),
+			},
 		},
 	}
 
@@ -20,6 +25,10 @@ func CreateReadService(cluster *openldapv1.OpenldapCluster) *corev1.Service {
 			Name:     "ldaps",
 			Port:     cluster.LdapsPort(),
 			Protocol: corev1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: cluster.LdapsPort(),
+			},
 		})
 	}
 
